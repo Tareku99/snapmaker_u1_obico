@@ -76,7 +76,15 @@ Fully supported.
 During installation you will be prompted:
 
 ```
-Enter your Obico server URL [https://app.obico.io]:
+During installation you will be prompted:
+
+Choose your Obico server type:
+  1) Obico Cloud (default)
+  2) Self-Hosted Obico
+
+If you choose Self-Hosted, you will then enter your custom server URL, for example:
+  http://192.168.1.50:3334
+  https://obico.mydomain.com
 ```
 
 Enter your custom server URL, for example:
@@ -298,17 +306,12 @@ https://github.com/Tareku99/snapmaker_u1_obico
 ---
 
 # 📜 Changelog
-
-All notable changes to this project are documented in:
-
-[CHANGELOG](CHANGELOG.md) 
-See version history, new features, fixes, and installer updates.
+See the full version history here:  
+[CHANGELOG](CHANGELOG.md)
 
 ---
 
 # 📄 License
-
-This project is licensed under the **MIT License**.  
-See the full text in:
-
-[LICENSE](LICENSE.md)
+This project is licensed under the MIT License.  
+See the full text here:  
+[LICENSE](LICENSE)
