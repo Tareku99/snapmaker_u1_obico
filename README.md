@@ -30,25 +30,14 @@ This installer automatically:
 
 SSH into your Snapmaker U1 and run the following:
 
-### 1. Clone this repository
+### 1. Download the installer
 ```bash
-cd /tmp
-git clone https://github.com/Tareku99/snapmaker_u1_obico.git
+curl -fsSL https://raw.githubusercontent.com/Tareku99/snapmaker_u1_obico/feature/virtualenv-obico-installer/obico-install.sh -o /tmp/obico-install.sh
 ```
 
-### 2. Navigate into the repo
+### 2. Run the installer
 ```bash
-cd snapmaker_u1_obico
-```
-
-### 3. Make the installer executable
-```bash
-chmod +x obico-install.sh
-```
-
-### 4. Run the installer
-```bash
-bash obico-install.sh install
+bash /tmp/obico-install.sh install
 ```
 
 The installer will:
@@ -61,6 +50,7 @@ The installer will:
 - Install a Moonraker autostart component  
 - Restart Moonraker  
 - Confirm Obico is running  
+
 
 ---
 

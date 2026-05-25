@@ -243,10 +243,17 @@ fetch_latest_tag() {
     fi
 
     log "Fetching latest Obico release tag..."
-    OBICO_TAG=$(curl -s https://api.github.com/repos/TheSpaghettiDetective/moonraker-obico/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
+
+    OBICO_TAG=$(curl -s https://api.github.com/repos/TheSpaghettiDetective/moonraker-obico/releases/latest \
+        | grep '"tag_name"' \
+        | head -n1 \
+        | sed 's/.*"tag_name": "//; s/".*//')
+
     [ -z "$OBICO_TAG" ] && error "Failed to fetch latest release tag."
+
     log "Latest release detected: $OBICO_TAG"
 }
+
 
 # =========================
 # DOWNLOAD + INTEGRITY CHECK
