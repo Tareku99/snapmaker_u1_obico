@@ -301,7 +301,7 @@ https://github.com/Tareku99/snapmaker_u1_obico
 
 All notable changes to this project are documented in:
 
-**CHANGELOG.md**  
+[CHANGELOG](CHANGELOG.md) 
 See version history, new features, fixes, and installer updates.
 
 ---
@@ -311,4 +311,4 @@ See version history, new features, fixes, and installer updates.
 This project is licensed under the **MIT License**.  
 See the full text in:
 
-**LICENSE.md**
+[LICENSE](LICENSE.md)
