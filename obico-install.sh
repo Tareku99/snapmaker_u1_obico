@@ -254,7 +254,6 @@ fetch_latest_tag() {
     log "Latest release detected: $OBICO_TAG"
 }
 
-
 # =========================
 # DOWNLOAD + INTEGRITY CHECK
 # =========================
