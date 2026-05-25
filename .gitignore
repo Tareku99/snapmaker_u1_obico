@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.tmp
+
+# Logs
+*.log
+*.log.1
+obico-logs/
+
+# Userdata
+userdata/
+userdata/*
+userdata/**
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.tar.gz
+
+# OS files
+.DS_Store
+Thumbs.db
