@@ -40,7 +40,7 @@ OBICO_CFG="$OBICO_DIR/moonraker-obico.cfg"
 
 MOONRAKER_COMPONENT="/home/lava/moonraker/moonraker/components/obico_starter.py"
 MOONRAKER_EXTRA_CFG="/home/lava/printer_data/config/extended/moonraker/05_obico.cfg"
-MOONRAKER_VERSION_CFG="/home/lava/printer_data/config/extended/moonraker/05_obico_version.cfg"
+MOONRAKER_VERSION_CFG="/userdata/obico-version.cfg"
 
 BACKUP_DIR="/userdata/obico-backup"
 
@@ -477,9 +477,12 @@ write_version_file() {
         return
     fi
 
+    # New safe location outside Moonraker's config tree
+    MOONRAKER_VERSION_CFG="/userdata/obico-version.cfg"
+
     (
+        mkdir -p /userdata
         cat > "$MOONRAKER_VERSION_CFG" << EOF
-[obico_metadata]
 version = $OBICO_TAG
 installer = $INSTALLER_VERSION
 EOF
