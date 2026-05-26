@@ -272,18 +272,21 @@ fetch_latest_tag() {
 download_obico() {
     log "Downloading moonraker-obico $OBICO_TAG..."
 
+    # Clean up any previous failed or partial installs
     run_cmd rm -rf "$OBICO_DIR.tmp"
     run_cmd rm -rf "$OBICO_DIR"
-    run_cmd mkdir -p "$OBICO_DIR"
+
+    # Prepare temp directory
     run_cmd mkdir -p "$OBICO_DIR.tmp"
 
     local URL="https://github.com/TheSpaghettiDetective/moonraker-obico/archive/refs/tags/$OBICO_TAG.tar.gz"
 
     run_cmd curl -fSL "$URL" -o /tmp/moonraker-obico.tar.gz || \
-        error "Download failed."
+        error "Failed to download Obico release."
 
+    # Validate tarball integrity
     if ! tar -tzf /tmp/moonraker-obico.tar.gz >/dev/null 2>&1; then
-        error "Downloaded tarball corrupted."
+        error "Downloaded tarball is corrupted."
     fi
 
     log "Extracting Obico source..."
@@ -293,8 +296,9 @@ download_obico() {
     wait
 
     run_cmd rm -f /tmp/moonraker-obico.tar.gz
-    run_cmd mv "$OBICO_DIR.tmp" "$OBICO_DIR"
 
+    # Move extracted source into place
+    run_cmd mv "$OBICO_DIR.tmp" "$OBICO_DIR"
     log "Obico source extracted."
 }
 
@@ -341,21 +345,20 @@ create_venv() {
     show_spinner $! "Creating virtual environment"
     wait
 
-    if [ "$DRY_RUN" -eq 0 ]; then
-        source "$OBICO_VENV.tmp/bin/activate"
+    source "$OBICO_VENV.tmp/bin/activate"
+    pip install --upgrade pip >/dev/null 2>&1 &
+    show_spinner $! "Upgrading pip"
+    wait
 
-        pip install --upgrade pip &
-        show_spinner $! "Upgrading pip"
-        wait
+    pip install -r "$OBICO_DIR/requirements.txt" >/dev/null 2>&1 &
+    show_spinner $! "Installing Python dependencies"
+    wait
 
-        pip install -r "$OBICO_DIR/requirements.txt" &
-        show_spinner $! "Installing Python dependencies"
-        wait
+    deactivate
 
-        deactivate
-    fi
-
+    run_cmd rm -rf "$OBICO_VENV"
     run_cmd mv "$OBICO_VENV.tmp" "$OBICO_VENV"
+
     log "Venv created at $OBICO_VENV"
 }
 
