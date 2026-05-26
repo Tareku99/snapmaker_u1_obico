@@ -389,7 +389,7 @@ create_config() {
 
     echo
     echo "Choose your Obico server type:"
-    echo "  1) Obico Cloud (default)"
+    echo "  1) Obico Cloud (app.obico.io)"
     echo "  2) Self-Hosted Obico"
 
     # Force explicit choice, no auto-skip
@@ -398,7 +398,7 @@ create_config() {
         read SERVER_CHOICE
 
         case "$SERVER_CHOICE" in
-            1|"")
+            1)
                 OBICO_URL="https://app.obico.io"
                 break
                 ;;
