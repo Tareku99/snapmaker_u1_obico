@@ -459,12 +459,8 @@ link_printer() {
         return
     fi
 
-    (
-        cd "$OBICO_DIR"
-        "$OBICO_VENV/bin/python" -m moonraker_obico.link -c "$OBICO_CFG"
-    ) &
-    show_spinner $! "Linking printer to Obico"
-    wait
+    cd "$OBICO_DIR"
+    "$OBICO_VENV/bin/python" -m moonraker_obico.link -c "$OBICO_CFG"
 }
 
 # =========================
