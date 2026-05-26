@@ -394,7 +394,8 @@ create_config() {
 
     # Force explicit choice, no auto-skip
     while true; do
-        read -p "Enter 1 or 2: " SERVER_CHOICE
+        printf "Enter 1 or 2: "
+        read SERVER_CHOICE
 
         case "$SERVER_CHOICE" in
             1|"")
@@ -403,7 +404,8 @@ create_config() {
                 ;;
             2)
                 while true; do
-                    read -p "Enter your Self-Hosted Obico server URL: " OBICO_URL
+                    printf "Enter your Self-Hosted Obico server URL: "
+                    read OBICO_URL
                     echo "$OBICO_URL" | grep -Eq '^https?://' && break
                     echo "Invalid URL format. Must start with http:// or https://"
                 done
@@ -415,6 +417,9 @@ create_config() {
         esac
     done
 
+    # BusyBox-safe LAN IP detection (Paxx Extended)
+    PRINTER_IP=$(ip addr show | awk '/inet / && !/127.0.0.1/ { sub("/.*", "", $2); print $2; exit }')
+
     cat > "$OBICO_CFG" << EOF
 [server]
 url = $OBICO_URL
@@ -424,8 +429,8 @@ host = 127.0.0.1
 port = 7125
 
 [webcam]
-snapshot_url = http://127.0.0.1/snapshot.jpg
-stream_url = http://127.0.0.1/stream.mjpg
+snapshot_url = http://$PRINTER_IP/webcam/snapshot.jpg
+stream_url = http://$PRINTER_IP/webcam/stream.mjpg
 disable_video_streaming = False
 
 [logging]
