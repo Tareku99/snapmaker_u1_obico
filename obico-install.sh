@@ -40,7 +40,7 @@ OBICO_CFG="$OBICO_DIR/moonraker-obico.cfg"
 
 MOONRAKER_COMPONENT="/home/lava/moonraker/moonraker/components/obico_starter.py"
 MOONRAKER_EXTRA_CFG="/home/lava/printer_data/config/extended/moonraker/05_obico.cfg"
-MOONRAKER_VERSION_CFG="/home/lava/printer_data/config/extended/moonraker/05_obico_version.cfg"
+MOONRAKER_VERSION_CFG="/userdata/obico-version.cfg"
 
 BACKUP_DIR="/userdata/obico-backup"
 
@@ -334,18 +334,20 @@ check_venv_health() {
 create_venv() {
     log "Creating Python virtual environment..."
 
-    (
-        rm -rf "$OBICO_VENV.tmp"
-        python3 -m venv "$OBICO_VENV.tmp"
-        source "$OBICO_VENV.tmp/bin/activate"
-        pip install --upgrade pip >/dev/null 2>&1
-        pip install -r "$OBICO_DIR/requirements.txt" >/dev/null 2>&1
-        deactivate
-        rm -rf "$OBICO_VENV"
-        mv "$OBICO_VENV.tmp" "$OBICO_VENV"
-    ) &
-    show_spinner $! "Creating Python virtual environment"
-    wait
+    rm -rf "$OBICO_VENV.tmp"
+
+    # Run in foreground so errors are visible
+    if ! python3 -m venv "$OBICO_VENV.tmp"; then
+        error "Failed to create Python venv. The Snapmaker firmware may be missing python3-venv."
+    fi
+
+    source "$OBICO_VENV.tmp/bin/activate"
+    pip install --upgrade pip
+    pip install -r "$OBICO_DIR/requirements.txt"
+    deactivate
+
+    rm -rf "$OBICO_VENV"
+    mv "$OBICO_VENV.tmp" "$OBICO_VENV"
 
     log "Venv created at $OBICO_VENV"
 }
@@ -459,12 +461,8 @@ link_printer() {
         return
     fi
 
-    (
-        cd "$OBICO_DIR"
-        "$OBICO_VENV/bin/python" -m moonraker_obico.link -c "$OBICO_CFG"
-    ) &
-    show_spinner $! "Linking printer to Obico"
-    wait
+    cd "$OBICO_DIR"
+    "$OBICO_VENV/bin/python" -m moonraker_obico.link -c "$OBICO_CFG"
 }
 
 # =========================
@@ -479,9 +477,12 @@ write_version_file() {
         return
     fi
 
+    # New safe location outside Moonraker's config tree
+    MOONRAKER_VERSION_CFG="/userdata/obico-version.cfg"
+
     (
+        mkdir -p /userdata
         cat > "$MOONRAKER_VERSION_CFG" << EOF
-[obico_metadata]
 version = $OBICO_TAG
 installer = $INSTALLER_VERSION
 EOF
