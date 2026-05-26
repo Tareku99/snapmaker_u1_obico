@@ -23,7 +23,7 @@
 #   uninstall:
 #     --keep-config   Keep config and logs when uninstalling
 #
-# Installer Version: v2.0.0
+# Installer Version: v2.1.0
 
 set -e
 
@@ -31,7 +31,7 @@ set -e
 # GLOBALS & CONSTANTS
 # =========================
 
-INSTALLER_VERSION="v2.0.0"
+INSTALLER_VERSION="v2.1.0"
 
 OBICO_DIR="/userdata/moonraker-src"
 OBICO_LOGS="/userdata/obico-logs"
@@ -429,8 +429,9 @@ host = 127.0.0.1
 port = 7125
 
 [webcam]
-snapshot_url = http://$PRINTER_IP/webcam/snapshot.jpg
+# Primary: MJPEG stream (fastest)
 stream_url = http://$PRINTER_IP/webcam/stream.mjpg
+snapshot_url = http://$PRINTER_IP/webcam/snapshot.jpg
 disable_video_streaming = False
 
 [logging]
@@ -512,7 +513,7 @@ backup_obico() {
 }
 
 # =========================
-# AUTOSTART
+# AUTOSTART WITH SELF-HEALING
 # =========================
 
 check_autostart_conflict() {
@@ -540,6 +541,7 @@ setup_autostart() {
 import subprocess
 import asyncio
 import os
+import shutil
 
 def load_component(config):
     return ObicoStarter(config)
@@ -551,7 +553,26 @@ class ObicoStarter:
             "server:klippy_ready", self._on_klippy_ready)
 
     async def _on_klippy_ready(self):
+        # Auto-restore persistence if firmware update wiped it
+        if not os.path.exists("/oem/.debug"):
+            open("/oem/.debug", "w").close()
+
+        # Fix permissions if needed
+        for path in [
+            "/userdata/obico-venv",
+            "/userdata/moonraker-src",
+            "/userdata/obico-logs"
+        ]:
+            if os.path.exists(path):
+                try:
+                    shutil.chown(path, user="lava", group="lava")
+                except:
+                    pass
+
+        # Delay to allow Klippy to fully initialize
         await asyncio.sleep(5)
+
+        # Launch Obico inside venv
         env = os.environ.copy()
         env["PATH"] = "$OBICO_VENV/bin:" + env["PATH"]
         subprocess.Popen(
@@ -753,19 +774,14 @@ pre_install_cleanup() {
     (
         # Remove leftover temp dirs
         rm -rf "$OBICO_DIR.tmp" "$OBICO_VENV.tmp" /tmp/moonraker-obico.tar.gz 2>/dev/null || true
-
         # Remove old Obico source + venv
         rm -rf "$OBICO_DIR" "$OBICO_VENV" 2>/dev/null || true
-
         # Remove old Moonraker autostart components
         rm -f "$MOONRAKER_COMPONENT" "$MOONRAKER_EXTRA_CFG" "$MOONRAKER_VERSION_CFG" 2>/dev/null || true
-
         # Remove pip cache
         rm -rf /root/.cache/pip 2>/dev/null || true
-
         # Ensure logs directory exists
         mkdir -p "$OBICO_LOGS"
-
         # Prune old logs (>5MB or >1 backup)
         if [ -f "$OBICO_LOGS/moonraker-obico.log.1" ]; then
             rm -f "$OBICO_LOGS/moonraker-obico.log.2" 2>/dev/null || true
@@ -826,6 +842,7 @@ install_obico() {
         fi
     fi
 
+    # Ensure persistence is enabled
     touch /oem/.debug
 
     fetch_latest_tag "$COMMAND_ARG"
