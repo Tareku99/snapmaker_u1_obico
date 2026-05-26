@@ -432,11 +432,7 @@ port = 7125
 # Primary: MJPEG stream (fastest)
 stream_url = http://$PRINTER_IP/webcam/stream.mjpg
 snapshot_url = http://$PRINTER_IP/webcam/snapshot.jpg
-
-# Force Obico to use MJPEG when available
 disable_video_streaming = False
-snapshot_only = False
-stream_format = mjpg
 
 [logging]
 path = $OBICO_LOGS/moonraker-obico.log
@@ -481,7 +477,7 @@ write_version_file() {
         warn "Dry-run: would write version file."
         return
     fi
-    
+
     # Safe location outside Moonraker config
     MOONRAKER_VERSION_CFG="/userdata/obico-version.cfg"
 
