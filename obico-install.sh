@@ -497,7 +497,7 @@ write_version_file() {
 
     (
         cat > "$MOONRAKER_VERSION_CFG" << EOF
-[obico]
+[obico_metadata]
 version = $OBICO_TAG
 installer = $INSTALLER_VERSION
 EOF
