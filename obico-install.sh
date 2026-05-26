@@ -94,7 +94,7 @@ confirm_yes() {
 # GENERALIZED SPINNER
 # =========================
 # Usage:
-#   long_command & 
+#   long_command &
 #   show_spinner $! "Doing something"
 #
 show_spinner() {
@@ -206,9 +206,16 @@ check_root() {
 
 check_internet() {
     log "Checking internet..."
-    if ! run_cmd curl -s --max-time 5 https://api.github.com >/dev/null; then
+
+    (
+        curl -s --max-time 5 https://api.github.com >/dev/null
+    ) &
+    show_spinner $! "Checking internet connectivity"
+
+    if ! curl -s --max-time 5 https://api.github.com >/dev/null; then
         error "No internet or GitHub unreachable."
     fi
+
     log "Internet OK."
 }
 
@@ -220,9 +227,14 @@ check_extended_firmware() {
 
 check_python() {
     command -v python3 >/dev/null 2>&1 || error "python3 missing."
-    python3 - <<EOF || error "Python venv module missing."
+
+    (
+        python3 - <<EOF
 import venv
 EOF
+    ) &
+    show_spinner $! "Checking Python environment"
+
     log "Python OK."
 }
 
@@ -255,10 +267,14 @@ fetch_latest_tag() {
 
     log "Fetching latest Obico release..."
 
-    OBICO_TAG=$(curl -s https://api.github.com/repos/TheSpaghettiDetective/moonraker-obico/releases/latest \
-        | grep '"tag_name"' \
-        | head -n1 \
-        | sed 's/.*"tag_name": "//; s/".*//')
+    (
+        OBICO_TAG=$(curl -s https://api.github.com/repos/TheSpaghettiDetective/moonraker-obico/releases/latest \
+            | grep '"tag_name"' \
+            | head -n1 \
+            | sed 's/.*"tag_name": "//; s/".*//')
+    ) &
+    show_spinner $! "Fetching latest release tag"
+    wait
 
     [ -z "$OBICO_TAG" ] && error "Failed to fetch release tag."
 
@@ -272,33 +288,28 @@ fetch_latest_tag() {
 download_obico() {
     log "Downloading moonraker-obico $OBICO_TAG..."
 
-    # Clean up any previous failed or partial installs
-    run_cmd rm -rf "$OBICO_DIR.tmp"
-    run_cmd rm -rf "$OBICO_DIR"
+    (
+        # Clean up any previous failed or partial installs
+        rm -rf "$OBICO_DIR.tmp"
+        rm -rf "$OBICO_DIR"
+        mkdir -p "$OBICO_DIR.tmp"
 
-    # Prepare temp directory
-    run_cmd mkdir -p "$OBICO_DIR.tmp"
+        local URL="https://github.com/TheSpaghettiDetective/moonraker-obico/archive/refs/tags/$OBICO_TAG.tar.gz"
 
-    local URL="https://github.com/TheSpaghettiDetective/moonraker-obico/archive/refs/tags/$OBICO_TAG.tar.gz"
+        curl -fSL "$URL" -o /tmp/moonraker-obico.tar.gz || exit 1
 
-    run_cmd curl -fSL "$URL" -o /tmp/moonraker-obico.tar.gz || \
-        error "Failed to download Obico release."
+        # Validate tarball integrity
+        tar -tzf /tmp/moonraker-obico.tar.gz >/dev/null 2>&1 || exit 1
 
-    # Validate tarball integrity
-    if ! tar -tzf /tmp/moonraker-obico.tar.gz >/dev/null 2>&1; then
-        error "Downloaded tarball is corrupted."
-    fi
+        # Extract
+        tar --strip-components=1 -xzf /tmp/moonraker-obico.tar.gz -C "$OBICO_DIR.tmp"
 
-    log "Extracting Obico source..."
-
-    tar --strip-components=1 -xzf /tmp/moonraker-obico.tar.gz -C "$OBICO_DIR.tmp" &
-    show_spinner $! "Extracting Obico source"
+        rm -f /tmp/moonraker-obico.tar.gz
+        mv "$OBICO_DIR.tmp" "$OBICO_DIR"
+    ) &
+    show_spinner $! "Downloading and extracting Obico"
     wait
 
-    run_cmd rm -f /tmp/moonraker-obico.tar.gz
-
-    # Move extracted source into place
-    run_cmd mv "$OBICO_DIR.tmp" "$OBICO_DIR"
     log "Obico source extracted."
 }
 
@@ -328,7 +339,7 @@ check_venv_health() {
             error "Aborting due to corrupted venv."
         fi
 
-        run_cmd rm -rf "$OBICO_VENV"
+        rm -rf "$OBICO_VENV"
     fi
 }
 
@@ -339,25 +350,18 @@ check_venv_health() {
 create_venv() {
     log "Creating Python virtual environment..."
 
-    run_cmd rm -rf "$OBICO_VENV.tmp"
-
-    python3 -m venv "$OBICO_VENV.tmp" &
-    show_spinner $! "Creating virtual environment"
+    (
+        rm -rf "$OBICO_VENV.tmp"
+        python3 -m venv "$OBICO_VENV.tmp"
+        source "$OBICO_VENV.tmp/bin/activate"
+        pip install --upgrade pip >/dev/null 2>&1
+        pip install -r "$OBICO_DIR/requirements.txt" >/dev/null 2>&1
+        deactivate
+        rm -rf "$OBICO_VENV"
+        mv "$OBICO_VENV.tmp" "$OBICO_VENV"
+    ) &
+    show_spinner $! "Creating Python virtual environment"
     wait
-
-    source "$OBICO_VENV.tmp/bin/activate"
-    pip install --upgrade pip >/dev/null 2>&1 &
-    show_spinner $! "Upgrading pip"
-    wait
-
-    pip install -r "$OBICO_DIR/requirements.txt" >/dev/null 2>&1 &
-    show_spinner $! "Installing Python dependencies"
-    wait
-
-    deactivate
-
-    run_cmd rm -rf "$OBICO_VENV"
-    run_cmd mv "$OBICO_VENV.tmp" "$OBICO_VENV"
 
     log "Venv created at $OBICO_VENV"
 }
@@ -367,18 +371,21 @@ create_venv() {
 # =========================
 
 rotate_logs() {
-    run_cmd mkdir -p "$OBICO_LOGS"
+    (
+        mkdir -p "$OBICO_LOGS"
 
-    local LOGFILE="$OBICO_LOGS/moonraker-obico.log"
+        local LOGFILE="$OBICO_LOGS/moonraker-obico.log"
 
-    if [ -f "$LOGFILE" ]; then
-        local SIZE
-        SIZE=$(stat -c%s "$LOGFILE" 2>/dev/null || echo 0)
-        if [ "$SIZE" -gt 5000000 ]; then
-            warn "Rotating Obico log..."
-            run_cmd mv "$LOGFILE" "$LOGFILE.1"
+        if [ -f "$LOGFILE" ]; then
+            local SIZE
+            SIZE=$(stat -c%s "$LOGFILE" 2>/dev/null || echo 0)
+            if [ "$SIZE" -gt 5000000 ]; then
+                mv "$LOGFILE" "$LOGFILE.1"
+            fi
         fi
-    fi
+    ) &
+    show_spinner $! "Rotating Obico logs"
+    wait
 }
 
 # =========================
@@ -387,7 +394,7 @@ rotate_logs() {
 
 create_config() {
     log "Creating config file..."
-    run_cmd mkdir -p "$OBICO_LOGS"
+    mkdir -p "$OBICO_LOGS"
 
     if [ "$DRY_RUN" -eq 1 ]; then
         warn "Dry-run: would prompt for URL and write config."
@@ -426,7 +433,8 @@ create_config() {
 
     PRINTER_IP=$(ip addr show | awk '/inet / && !/127.0.0.1/ { sub("/.*", "", $2); print $2; exit }')
 
-    cat > "$OBICO_CFG" << EOF
+    (
+        cat > "$OBICO_CFG" << EOF
 [server]
 url = $OBICO_URL
 
@@ -445,6 +453,9 @@ level = INFO
 
 [tunnel]
 EOF
+    ) &
+    show_spinner $! "Writing Obico configuration"
+    wait
 }
 
 # =========================
@@ -464,8 +475,12 @@ link_printer() {
         return
     fi
 
-    cd "$OBICO_DIR"
-    "$OBICO_VENV/bin/python" -m moonraker_obico.link -c "$OBICO_CFG"
+    (
+        cd "$OBICO_DIR"
+        "$OBICO_VENV/bin/python" -m moonraker_obico.link -c "$OBICO_CFG"
+    ) &
+    show_spinner $! "Linking printer to Obico"
+    wait
 }
 
 # =========================
@@ -480,11 +495,15 @@ write_version_file() {
         return
     fi
 
-    cat > "$MOONRAKER_VERSION_CFG" << EOF
+    (
+        cat > "$MOONRAKER_VERSION_CFG" << EOF
 [obico]
 version = $OBICO_TAG
 installer = $INSTALLER_VERSION
 EOF
+    ) &
+    show_spinner $! "Writing version metadata"
+    wait
 }
 
 # =========================
@@ -494,16 +513,15 @@ EOF
 backup_obico() {
     log "Backing up Obico configuration..."
 
-    run_cmd mkdir -p "$BACKUP_DIR"
+    (
+        mkdir -p "$BACKUP_DIR"
 
-    if [ "$DRY_RUN" -eq 1 ]; then
-        warn "Dry-run: would copy config, logs, version file."
-        return
-    fi
-
-    [ -f "$OBICO_CFG" ] && cp "$OBICO_CFG" "$BACKUP_DIR/"
-    [ -f "$MOONRAKER_VERSION_CFG" ] && cp "$MOONRAKER_VERSION_CFG" "$BACKUP_DIR/"
-    [ -d "$OBICO_LOGS" ] && cp -r "$OBICO_LOGS" "$BACKUP_DIR/"
+        [ -f "$OBICO_CFG" ] && cp "$OBICO_CFG" "$BACKUP_DIR/"
+        [ -f "$MOONRAKER_VERSION_CFG" ] && cp "$MOONRAKER_VERSION_CFG" "$BACKUP_DIR/"
+        [ -d "$OBICO_LOGS" ] && cp -r "$OBICO_LOGS" "$BACKUP_DIR/"
+    ) &
+    show_spinner $! "Backing up Obico configuration"
+    wait
 
     log "Backup complete: $BACKUP_DIR"
 }
@@ -532,7 +550,8 @@ setup_autostart() {
         return
     fi
 
-    cat > "$MOONRAKER_COMPONENT" << EOF
+    (
+        cat > "$MOONRAKER_COMPONENT" << EOF
 import subprocess
 import asyncio
 import os
@@ -559,7 +578,10 @@ class ObicoStarter:
         )
 EOF
 
-    echo "[obico_starter]" > "$MOONRAKER_EXTRA_CFG"
+        echo "[obico_starter]" > "$MOONRAKER_EXTRA_CFG"
+    ) &
+    show_spinner $! "Installing autostart component"
+    wait
 }
 
 # =========================
@@ -567,7 +589,11 @@ EOF
 # =========================
 
 fix_permissions() {
-    run_cmd chown -R lava:lava "$OBICO_DIR" "$OBICO_LOGS" "$OBICO_VENV" 2>/dev/null || true
+    (
+        chown -R lava:lava "$OBICO_DIR" "$OBICO_LOGS" "$OBICO_VENV" 2>/dev/null || true
+    ) &
+    show_spinner $! "Fixing file permissions"
+    wait
 }
 
 # =========================
@@ -575,22 +601,27 @@ fix_permissions() {
 # =========================
 
 restart_moonraker() {
-    log "Restarting Moonraker..."
-    run_cmd /etc/init.d/S61moonraker restart
+    (
+        /etc/init.d/S61moonraker restart
+    ) &
+    show_spinner $! "Restarting Moonraker"
+    wait
 }
 
 verify_moonraker_restart() {
     log "Waiting for Moonraker to come back online..."
 
-    for i in {1..20}; do
-        curl -s http://127.0.0.1:7125/server/info >/dev/null 2>&1 && {
-            log "Moonraker is online."
-            return
-        }
-        sleep 1
-    done
+    (
+        for i in {1..20}; do
+            curl -s http://127.0.0.1:7125/server/info >/dev/null 2>&1 && exit 0
+            sleep 1
+        done
+        exit 1
+    ) &
+    show_spinner $! "Verifying Moonraker startup"
+    wait || error "Moonraker failed to restart."
 
-    error "Moonraker failed to restart."
+    log "Moonraker is online."
 }
 
 # =========================
@@ -598,6 +629,13 @@ verify_moonraker_restart() {
 # =========================
 
 verify_obico() {
+    (
+        sleep 2
+        pgrep -f moonraker_obico.app >/dev/null
+    ) &
+    show_spinner $! "Checking Obico process"
+    wait
+
     if pgrep -f moonraker_obico.app >/dev/null; then
         log "✓ Obico is running."
     else
@@ -676,21 +714,28 @@ uninstall_obico() {
     confirm_yes "Are you sure?" || error "Uninstall cancelled."
 
     warn "Stopping Obico..."
-    run_cmd pkill -f moonraker_obico.app || true
+    pkill -f moonraker_obico.app || true
 
     warn "Removing files..."
 
-    if [ "$UNINSTALL_KEEP_CONFIG" -eq 1 ]; then
-        warn "--keep-config: preserving config + logs."
-        run_cmd rm -rf "$OBICO_DIR" "$OBICO_VENV"
-    else
-        run_cmd rm -rf "$OBICO_DIR" "$OBICO_LOGS" "$OBICO_VENV"
-    fi
+    (
+        if [ "$UNINSTALL_KEEP_CONFIG" -eq 1 ]; then
+            warn "--keep-config: preserving config + logs."
+            rm -rf "$OBICO_DIR" "$OBICO_VENV"
+        else
+            rm -rf "$OBICO_DIR" "$OBICO_LOGS" "$OBICO_VENV"
+        fi
 
-    run_cmd rm -f "$MOONRAKER_COMPONENT" "$MOONRAKER_EXTRA_CFG" "$MOONRAKER_VERSION_CFG"
+        rm -f "$MOONRAKER_COMPONENT" "$MOONRAKER_EXTRA_CFG" "$MOONRAKER_VERSION_CFG"
+    ) &
+    show_spinner $! "Removing Obico files"
+    wait
 
-    log "Restarting Moonraker..."
-    run_cmd /etc/init.d/S61moonraker restart
+    (
+        /etc/init.d/S61moonraker restart
+    ) &
+    show_spinner $! "Restarting Moonraker"
+    wait
 
     log "Obico uninstalled."
 }
@@ -702,9 +747,13 @@ uninstall_obico() {
 restore_obico() {
     log "Restoring Obico after firmware update..."
 
-    run_cmd touch /oem/.debug
-    fix_permissions
-    run_cmd /etc/init.d/S61moonraker restart
+    (
+        touch /oem/.debug
+        chown -R lava:lava "$OBICO_DIR" "$OBICO_LOGS" "$OBICO_VENV" 2>/dev/null || true
+        /etc/init.d/S61moonraker restart
+    ) &
+    show_spinner $! "Restoring Obico installation"
+    wait
 
     log "Restore complete."
 }
@@ -716,25 +765,29 @@ restore_obico() {
 pre_install_cleanup() {
     warn "Running pre-install cleanup..."
 
-    # Remove leftover temp dirs
-    rm -rf "$OBICO_DIR.tmp" "$OBICO_VENV.tmp" /tmp/moonraker-obico.tar.gz 2>/dev/null || true
+    (
+        # Remove leftover temp dirs
+        rm -rf "$OBICO_DIR.tmp" "$OBICO_VENV.tmp" /tmp/moonraker-obico.tar.gz 2>/dev/null || true
 
-    # Remove old Obico source + venv
-    rm -rf "$OBICO_DIR" "$OBICO_VENV" 2>/dev/null || true
+        # Remove old Obico source + venv
+        rm -rf "$OBICO_DIR" "$OBICO_VENV" 2>/dev/null || true
 
-    # Remove old Moonraker autostart components
-    rm -f "$MOONRAKER_COMPONENT" "$MOONRAKER_EXTRA_CFG" "$MOONRAKER_VERSION_CFG" 2>/dev/null || true
+        # Remove old Moonraker autostart components
+        rm -f "$MOONRAKER_COMPONENT" "$MOONRAKER_EXTRA_CFG" "$MOONRAKER_VERSION_CFG" 2>/dev/null || true
 
-    # Remove pip cache
-    rm -rf /root/.cache/pip 2>/dev/null || true
+        # Remove pip cache
+        rm -rf /root/.cache/pip 2>/dev/null || true
 
-    # Ensure logs directory exists
-    mkdir -p "$OBICO_LOGS"
+        # Ensure logs directory exists
+        mkdir -p "$OBICO_LOGS"
 
-    # Prune old logs (>5MB or >1 backup)
-    if [ -f "$OBICO_LOGS/moonraker-obico.log.1" ]; then
-        rm -f "$OBICO_LOGS/moonraker-obico.log.2" 2>/dev/null || true
-    fi
+        # Prune old logs (>5MB or >1 backup)
+        if [ -f "$OBICO_LOGS/moonraker-obico.log.1" ]; then
+            rm -f "$OBICO_LOGS/moonraker-obico.log.2" 2>/dev/null || true
+        fi
+    ) &
+    show_spinner $! "Cleaning up old Obico files"
+    wait
 }
 
 # =========================
@@ -749,12 +802,12 @@ update_obico() {
     check_extended_firmware
     check_python
     check_moonraker_paths
-    pre_install_cleanup 
+    pre_install_cleanup
 
     fetch_latest_tag "$COMMAND_ARG"
 
     warn "Stopping Obico..."
-    run_cmd pkill -f moonraker_obico.app || true
+    pkill -f moonraker_obico.app || true
 
     download_obico
     check_venv_health
@@ -788,7 +841,7 @@ install_obico() {
         fi
     fi
 
-    run_cmd touch /oem/.debug
+    touch /oem/.debug
 
     fetch_latest_tag "$COMMAND_ARG"
     download_obico
