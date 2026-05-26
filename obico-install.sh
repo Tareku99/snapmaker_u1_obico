@@ -259,28 +259,18 @@ check_existing_install() {
 # =========================
 
 fetch_latest_tag() {
+    # If user passed a version manually, use it
     if [ -n "$1" ]; then
         OBICO_TAG="$1"
         log "Using version: $OBICO_TAG"
         return
     fi
 
-    log "Fetching latest Obico release..."
-
-    {
-        OBICO_TAG=$(curl -s https://api.github.com/repos/TheSpaghettiDetective/moonraker-obico/releases \
-            | grep '"tag_name"' \
-            | head -n1 \
-            | sed 's/.*"tag_name": "//; s/".*//')
-    } &
-    pid=$!
-    show_spinner $pid "Fetching latest release tag"
-    wait $pid
-
-    [ -z "$OBICO_TAG" ] && error "Failed to fetch release tag."
-
-    log "Latest release: $OBICO_TAG"
+    # Default: use master branch (most reliable, never rate-limited)
+    OBICO_TAG="master"
+    log "Using branch: master (no GitHub API required)"
 }
+
 
 # =========================
 # DOWNLOAD + EXTRACT
@@ -290,21 +280,17 @@ download_obico() {
     log "Downloading moonraker-obico $OBICO_TAG..."
 
     (
-        # Clean up any previous failed or partial installs
         rm -rf "$OBICO_DIR.tmp"
-        rm -rf "$OBICO_DIR"
         mkdir -p "$OBICO_DIR.tmp"
 
-        local URL="https://github.com/TheSpaghettiDetective/moonraker-obico/archive/refs/tags/$OBICO_TAG.tar.gz"
+        if [ "$OBICO_TAG" = "master" ]; then
+            URL="https://github.com/TheSpaghettiDetective/moonraker-obico/archive/refs/heads/master.tar.gz"
+        else
+            URL="https://github.com/TheSpaghettiDetective/moonraker-obico/archive/refs/tags/$OBICO_TAG.tar.gz"
+        fi
 
         curl -fSL "$URL" -o /tmp/moonraker-obico.tar.gz || exit 1
-
-        # Validate tarball integrity
-        tar -tzf /tmp/moonraker-obico.tar.gz >/dev/null 2>&1 || exit 1
-
-        # Extract
         tar --strip-components=1 -xzf /tmp/moonraker-obico.tar.gz -C "$OBICO_DIR.tmp"
-
         rm -f /tmp/moonraker-obico.tar.gz
         mv "$OBICO_DIR.tmp" "$OBICO_DIR"
     ) &
