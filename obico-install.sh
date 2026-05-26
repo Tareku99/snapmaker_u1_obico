@@ -83,7 +83,7 @@ confirm_yes() {
     read -t 0.01 -n 10000 discard 2>/dev/null || true
 
     while true; do
-        printf "%s [y/N]: " "$1"
+        printf "%s [y/dasdasN]: " "$1"
         read ANSWER
         case "${ANSWER,,}" in
             y|yes)
