@@ -267,12 +267,12 @@ fetch_latest_tag() {
 
     log "Fetching latest Obico release..."
 
-    (
-        OBICO_TAG=$(curl -s https://api.github.com/repos/TheSpaghettiDetective/moonraker-obico/releases/latest \
+    {
+        OBICO_TAG=$(curl -s https://api.github.com/repos/TheSpaghettiDetective/moonraker-obico/releases \
             | grep '"tag_name"' \
             | head -n1 \
             | sed 's/.*"tag_name": "//; s/".*//')
-    ) &
+    } &
     show_spinner $! "Fetching latest release tag"
     wait
 
