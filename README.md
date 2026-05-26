@@ -3,12 +3,15 @@
 AI‑powered print monitoring and failure detection for the **Snapmaker U1**, using **Moonraker‑Obico** and the **Paxx Extended Firmware**.
 
 This installer automatically:
-- Fetches the **latest Obico source (master branch)**
-- Installs it inside a **Python virtual environment**
-- Creates a **Moonraker autostart component**
-- Configures webcam snapshot mode
+
+- Fetches the latest Obico source (master branch)
+- Installs it inside a Python virtual environment
+- Creates a **self‑healing Moonraker autostart component**
+- Enables **MJPEG streaming** (fastest internal camera mode)
+- Falls back to snapshot mode if MJPEG is unavailable
 - Links your printer to Obico (Cloud or Self‑Hosted)
-- Ensures everything survives firmware updates
+- Automatically restores itself after firmware updates
+- Repairs permissions and persistence on boot
 - Provides update, backup, and health‑check tools
 
 ---
@@ -20,8 +23,8 @@ This installer automatically:
 - **SSH access enabled**
 - **Internet connection**
 - **Obico account**  
-  - **Obico Cloud** → https://app.obico.io  
-  - **Self‑Hosted Obico** → any custom server URL  
+  - Obico Cloud → https://app.obico.io  
+  - Self‑Hosted Obico → any custom server URL
 - Basic terminal familiarity
 
 ---
@@ -41,13 +44,14 @@ bash /tmp/obico-install.sh install
 ```
 
 The installer will:
+
 - Verify extended firmware  
 - Enable persistence  
-- Fetch the **latest Obico source (master branch)**  
+- Fetch the latest Obico source  
 - Install into `/userdata/obico-venv`  
 - Create config + logs  
 - Link your printer (unless `--no-link` is used)  
-- Install a Moonraker autostart component  
+- Install a **self‑healing autostart component**  
 - Restart Moonraker  
 - Confirm Obico is running  
 
@@ -60,7 +64,8 @@ The installer will:
 - Easiest setup
 
 ### Self‑Hosted Obico
-Fully supported.  
+Fully supported.
+
 During installation you will be prompted:
 
 ```
@@ -81,7 +86,6 @@ https://obico.mydomain.com
 # 🧠 How It Works
 
 ## Virtual Environment
-
 All Python dependencies are installed into:
 
 ```
@@ -91,7 +95,6 @@ All Python dependencies are installed into:
 This prevents conflicts with system Python and survives firmware updates.
 
 ## Persistent Directories
-
 The installer uses:
 
 ```
@@ -104,8 +107,7 @@ The installer uses:
 
 Everything is isolated and safe across reboots.
 
-## Autostart Component
-
+## Self‑Healing Autostart Component
 A Moonraker component is created at:
 
 ```
@@ -118,27 +120,33 @@ And enabled via:
 /home/lava/printer_data/config/extended/moonraker/05_obico.cfg
 ```
 
-This launches Obico automatically when Klippy becomes ready.
+On every boot, it automatically:
+
+- Re‑enables persistence if wiped by firmware update  
+- Fixes permissions  
+- Ensures Obico starts cleanly  
+
+This makes the installation **self‑healing**.
 
 ---
 
-# 📷 Webcam Support
+# 📷 Webcam Support (MJPEG Streaming Enabled)
 
 Paxx Extended Firmware exposes the internal camera at:
 
 ```
-http://<printer-ip>/webcam/snapshot.jpg
-http://<printer-ip>/webcam/stream.mjpg
+http://<printer-ip>/webcam/stream.mjpg   (MJPEG stream)
+http://<printer-ip>/webcam/snapshot.jpg  (snapshot fallback)
 ```
 
-The installer automatically detects your printer’s LAN IP and writes the correct URLs into:
+The installer automatically:
 
-```
-/userdata/moonraker-src/moonraker-obico.cfg
-```
+- Detects your printer’s LAN IP  
+- Sets MJPEG as the **primary** stream  
+- Enables snapshot as fallback  
+- Configures Obico for the fastest possible internal camera mode  
 
-Obico uses **snapshot mode** on the U1 (no Janus/WebRTC).  
-This is normal and fully supported.
+No Janus/WebRTC is required or supported on the U1.
 
 ---
 
@@ -151,9 +159,10 @@ Created at:
 ```
 
 Includes:
+
 - Obico server URL (Cloud or Self‑Hosted)
 - Moonraker host/port  
-- Webcam snapshot URLs  
+- Webcam MJPEG + snapshot URLs  
 - Logging path  
 
 ---
@@ -174,6 +183,22 @@ bash obico-install.sh install --no-link
 
 ---
 
+# 🔄 Automatic Restore After Firmware Updates
+
+Paxx firmware updates wipe overlay persistence.
+
+This installer now includes **full auto‑restore**:
+
+### ✔ Auto‑restore during install  
+### ✔ Auto‑restore on boot  
+### ✔ Auto‑restore after updates  
+### ✔ Auto‑repair of permissions  
+### ✔ No user action required  
+
+Your Obico install remains intact automatically.
+
+---
+
 # 🗑️ Uninstall
 
 ```bash
@@ -181,6 +206,7 @@ bash obico-install.sh uninstall
 ```
 
 Removes:
+
 - venv  
 - source directory  
 - logs  
@@ -190,27 +216,10 @@ Removes:
 Then restarts Moonraker.
 
 Keep config + logs:
+
 ```bash
 bash obico-install.sh uninstall --keep-config
 ```
-
----
-
-# 🔄 Restore After Firmware Update
-
-Paxx firmware updates wipe overlay persistence.  
-To restore Obico:
-
-```bash
-bash obico-install.sh restore
-```
-
-This:
-- Re‑enables persistence  
-- Fixes permissions  
-- Restarts Moonraker  
-
-Your Obico install remains intact.
 
 ---
 
@@ -218,59 +227,60 @@ Your Obico install remains intact.
 
 ## Install a specific Obico version
 ```bash
-bash /tmp/obico-install.sh install v4.0.0
+bash obico-install.sh install v4.0.0
 ```
 
 ## Install latest (master branch)
 ```bash
-bash /tmp/obico-install.sh install
+bash obico-install.sh install
 ```
 
 ## Install without linking
 ```bash
-bash /tmp/obico-install.sh install --no-link
+bash obico-install.sh install --no-link
 ```
 
 ## Install without autostart
 ```bash
-bash /tmp/obico-install.sh install --no-autostart
+bash obico-install.sh install --no-autostart
 ```
 
 ## Debug mode
 ```bash
-bash /tmp/obico-install.sh --debug install
+bash obico-install.sh --debug install
 ```
 
 ## Dry‑run (no changes made)
 ```bash
-bash /tmp/obico-install.sh --dry-run install
+bash obico-install.sh --dry-run install
 ```
 
 ## Update Obico
 ```bash
-bash /tmp/obico-install.sh update
+bash obico-install.sh update
 ```
 
 Or update to a specific version:
+
 ```bash
-bash /tmp/obico-install.sh update v4.0.0
+bash obico-install.sh update v4.0.0
 ```
 
 ## Backup config + logs
 ```bash
-bash /tmp/obico-install.sh backup
+bash obico-install.sh backup
 ```
 
 ## System health check
 ```bash
-bash /tmp/obico-install.sh doctor
+bash obico-install.sh doctor
 ```
 
 ---
 
 # ❗ Known Limitations
 
-- No Janus/WebRTC → Obico uses snapshot mode only  
+- No Janus/WebRTC → Obico uses MJPEG + snapshot  
 - Requires Paxx Extended Firmware  
 - Requires internet access during installation  
 - Autostart waits for Klippy to be ready (5 seconds delay)
@@ -279,17 +289,14 @@ bash /tmp/obico-install.sh doctor
 
 # ❤️ Credits
 
-### Obico / Moonraker‑Obico  
-https://github.com/TheSpaghettiDetective/moonraker-obico
-
-### Paxx Extended Firmware  
-https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware
-
-### D3LZ Community U1 Obico Work  
-https://github.com/D3LZ-D3LZ-D3LZ/u1obico
-
-### This Installer  
-https://github.com/Tareku99/snapmaker_u1_obico
+- **Obico / Moonraker‑Obico**  
+  https://github.com/TheSpaghettiDetective/moonraker-obico
+- **Paxx Extended Firmware**  
+  https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware
+- **D3LZ Community U1 Obico Work**  
+  https://github.com/D3LZ-D3LZ-D3LZ/u1obico
+- **This Installer**  
+  https://github.com/Tareku99/snapmaker_u1_obico
 
 ---
 
