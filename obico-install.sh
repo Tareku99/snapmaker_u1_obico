@@ -369,18 +369,29 @@ create_config() {
     echo "Choose your Obico server type:"
     echo "  1) Obico Cloud (default)"
     echo "  2) Self-Hosted Obico"
-    read -p "Enter 1 or 2: " SERVER_CHOICE
 
-    case "$SERVER_CHOICE" in
-        2)
-            read -p "Enter your Self-Hosted Obico server URL: " OBICO_URL
-            ;;
-        *)
-            OBICO_URL="https://app.obico.io"
-            ;;
-    esac
+    # Force explicit choice, no auto-skip
+    while true; do
+        read -p "Enter 1 or 2: " SERVER_CHOICE
 
-    echo "$OBICO_URL" | grep -Eq '^https?://' || error "Invalid URL format."
+        case "$SERVER_CHOICE" in
+            1|"")
+                OBICO_URL="https://app.obico.io"
+                break
+                ;;
+            2)
+                while true; do
+                    read -p "Enter your Self-Hosted Obico server URL: " OBICO_URL
+                    echo "$OBICO_URL" | grep -Eq '^https?://' && break
+                    echo "Invalid URL format. Must start with http:// or https://"
+                done
+                break
+                ;;
+            *)
+                echo "Invalid choice. Please enter 1 or 2."
+                ;;
+        esac
+    done
 
     cat > "$OBICO_CFG" << EOF
 [server]

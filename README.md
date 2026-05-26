@@ -32,7 +32,7 @@ SSH into your Snapmaker U1 and run the following:
 
 ### 1. Download the installer
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Tareku99/snapmaker_u1_obico/feature/virtualenv-obico-installer/obico-install.sh -o /tmp/obico-install.sh
+curl -fsSL "https://raw.githubusercontent.com/Tareku99/snapmaker_u1_obico/main/obico-install.sh?$(date +%s)" -o /tmp/obico-install.sh
 ```
 
 ### 2. Run the installer
