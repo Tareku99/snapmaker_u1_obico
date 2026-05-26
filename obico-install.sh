@@ -273,8 +273,9 @@ fetch_latest_tag() {
             | head -n1 \
             | sed 's/.*"tag_name": "//; s/".*//')
     } &
-    show_spinner $! "Fetching latest release tag"
-    wait
+    pid=$!
+    show_spinner $pid "Fetching latest release tag"
+    wait $pid
 
     [ -z "$OBICO_TAG" ] && error "Failed to fetch release tag."
 
