@@ -3,7 +3,7 @@
 AI‑powered print monitoring and failure detection for the **Snapmaker U1**, using **Moonraker‑Obico** and the **Paxx Extended Firmware**.
 
 This installer automatically:
-- Fetches the **latest Obico release**
+- Fetches the **latest Obico source (master branch)**
 - Installs it inside a **Python virtual environment**
 - Creates a **Moonraker autostart component**
 - Configures webcam snapshot mode
@@ -28,7 +28,7 @@ This installer automatically:
 
 # ⚡ Installation Steps
 
-SSH into your Snapmaker U1 and run the following:
+SSH into your Snapmaker U1 and run:
 
 ### 1. Download the installer
 ```bash
@@ -43,7 +43,7 @@ bash /tmp/obico-install.sh install
 The installer will:
 - Verify extended firmware  
 - Enable persistence  
-- Fetch the **latest Obico release tag**  
+- Fetch the **latest Obico source (master branch)**  
 - Install into `/userdata/obico-venv`  
 - Create config + logs  
 - Link your printer (unless `--no-link` is used)  
@@ -58,7 +58,6 @@ The installer will:
 ### Obico Cloud (default)
 - URL: `https://app.obico.io`
 - Easiest setup
-- Works out‑of‑the‑box with this installer
 
 ### Self‑Hosted Obico
 Fully supported.  
@@ -66,18 +65,16 @@ During installation you will be prompted:
 
 ```
 Choose your Obico server type:
-  1) Obico Cloud (default)
+  1) Obico Cloud
   2) Self-Hosted Obico
 ```
 
-If you choose Self‑Hosted, you will then enter your custom server URL, for example:
+Enter your server URL, for example:
 
 ```
-http://192.168.1.50:3334
+http://192.168.1.69:3334
 https://obico.mydomain.com
 ```
-
-The installer configures everything automatically.
 
 ---
 
@@ -98,10 +95,11 @@ This prevents conflicts with system Python and survives firmware updates.
 The installer uses:
 
 ```
-/userdata/moonraker-src   (Obico source)
-/userdata/obico-logs      (logs)
-/userdata/obico-venv      (Python venv)
-/userdata/obico-backup    (backups)
+/userdata/moonraker-src        (Obico source)
+/userdata/obico-logs           (logs)
+/userdata/obico-venv           (Python venv)
+/userdata/obico-backup         (backups)
+/userdata/obico-version.cfg    (installer + version metadata)
 ```
 
 Everything is isolated and safe across reboots.
@@ -122,16 +120,24 @@ And enabled via:
 
 This launches Obico automatically when Klippy becomes ready.
 
-## Webcam Support
+---
 
-The Paxx firmware exposes the internal camera at:
+# 📷 Webcam Support
+
+Paxx Extended Firmware exposes the internal camera at:
 
 ```
-http://127.0.0.1/snapshot.jpg
-http://127.0.0.1/stream.mjpg
+http://<printer-ip>/webcam/snapshot.jpg
+http://<printer-ip>/webcam/stream.mjpg
 ```
 
-Obico uses **snapshot mode** (no Janus/WebRTC on U1).  
+The installer automatically detects your printer’s LAN IP and writes the correct URLs into:
+
+```
+/userdata/moonraker-src/moonraker-obico.cfg
+```
+
+Obico uses **snapshot mode** on the U1 (no Janus/WebRTC).  
 This is normal and fully supported.
 
 ---
@@ -154,16 +160,15 @@ Includes:
 
 # 🔗 Linking Your Printer
 
-During installation, you will be prompted to link your printer.  
-This uses:
+During installation, you will be prompted to link your printer using:
 
 ```
 moonraker_obico.link
 ```
 
-If you prefer to link later (Cloud or Self‑Hosted), use:
+If you prefer to link later:
 
-```
+```bash
 bash obico-install.sh install --no-link
 ```
 
@@ -213,52 +218,52 @@ Your Obico install remains intact.
 
 ## Install a specific Obico version
 ```bash
-bash obico-install.sh install v4.0.0
+bash /tmp/obico-install.sh install v4.0.0
 ```
 
-## Install latest release (default)
+## Install latest (master branch)
 ```bash
-bash obico-install.sh install
+bash /tmp/obico-install.sh install
 ```
 
 ## Install without linking
 ```bash
-bash obico-install.sh install --no-link
+bash /tmp/obico-install.sh install --no-link
 ```
 
 ## Install without autostart
 ```bash
-bash obico-install.sh install --no-autostart
+bash /tmp/obico-install.sh install --no-autostart
 ```
 
 ## Debug mode
 ```bash
-bash obico-install.sh --debug install
+bash /tmp/obico-install.sh --debug install
 ```
 
 ## Dry‑run (no changes made)
 ```bash
-bash obico-install.sh --dry-run install
+bash /tmp/obico-install.sh --dry-run install
 ```
 
 ## Update Obico
 ```bash
-bash obico-install.sh update
+bash /tmp/obico-install.sh update
 ```
 
 Or update to a specific version:
 ```bash
-bash obico-install.sh update v4.0.0
+bash /tmp/obico-install.sh update v4.0.0
 ```
 
 ## Backup config + logs
 ```bash
-bash obico-install.sh backup
+bash /tmp/obico-install.sh backup
 ```
 
 ## System health check
 ```bash
-bash obico-install.sh doctor
+bash /tmp/obico-install.sh doctor
 ```
 
 ---
