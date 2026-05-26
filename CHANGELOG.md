@@ -1,66 +1,44 @@
 # Changelog
 
-## v2.0.0 — Modular Installer + Hybrid CLI Release
+All notable changes to this project will be documented in this file.
+
+## v2.0.0 — 2025‑05‑25
 ### Added
-- Fully modular installer architecture (functions for install/update/backup/doctor/etc.)
-- Hybrid CLI with subcommands (`install`, `update`, `backup`, `doctor`, `restore`, `uninstall`)
-- GNU‑style flexible flag parsing (flags before or after commands)
-- New global flags:
-  - `--debug` (verbose output)
-  - `--dry-run` (simulate actions without changes)
-- New install flags:
-  - `--no-link` (skip printer linking)
-  - `--no-autostart` (skip Moonraker autostart component)
-- New uninstall flag:
-  - `--keep-config` (preserve config + logs)
-- Added `update` command (upgrade Obico safely)
-- Added `backup` command (config + logs)
-- Added `doctor` command (system health checks)
-- Added explicit Cloud vs Self‑Hosted Obico prompt
-- Added versioned installer metadata (`v2.0.0`)
-- Added backup directory `/userdata/obico-backup`
-- Added venv health checks + corruption detection
-- Added improved autostart conflict detection
-- Added Moonraker restart verification + Obico process verification
+- Full **pre‑install cleanup system**:
+  - Removes old Obico source directories
+  - Removes old virtual environments
+  - Removes leftover `.tmp` directories
+  - Removes old Moonraker autostart components
+  - Removes pip cache
+  - Prunes old logs
+- Automatic cleanup runs on both **install** and **update**
+- Added `--no-link` and `--no-autostart` install flags
+- Added `--keep-config` uninstall flag
+- Added `doctor` command for system health checks
+- Added `backup` command for config + metadata backup
+- Added `restore` command for post‑firmware‑update recovery
+- Added spinner UI for long operations
+- Added version tracking file (`05_obico_version.cfg`)
 
 ### Improved
-- Cleaner directory structure under `/userdata`
-- More robust error handling and user guidance
-- Safer installation flow with partial‑install cleanup
-- Better webcam configuration defaults
-- More stable autostart component behavior
-- More maintainable codebase with modular functions
-- Documentation updated for v2 installer, Cloud/Self‑Hosted support, and new commands
+- More robust error handling with automatic rollback on failure
+- Better validation of Python environment and venv health
+- More reliable Moonraker restart detection
+- Cleaner and safer autostart component generation
+- Better log rotation handling
+- Safer extraction and venv creation using `.tmp` directories
 
-### Notes
-This release introduces a complete architectural overhaul of the installer, making it more reliable, maintainable, and feature‑rich.  
-It fully supports both **Obico Cloud** and **Self‑Hosted Obico** servers.
+### Fixed
+- Issues with partial installs leaving behind broken directories
+- Problems caused by duplicate autostart components
+- Old venvs causing dependency conflicts
+- Tarball extraction errors not being cleaned up
+- Permissions issues after firmware updates
 
 ---
 
-## v1.0.0 — Initial Production Release
-### Added
-- Complete rewrite of `obico-install.sh`
-- Added Python + venv validation
-- Added Moonraker path validation
-- Added partial-install cleanup handler
-- Added tarball integrity verification
-- Added log rotation (5MB threshold)
-- Added version logging to Moonraker config
-- Added venv corruption detection (with user confirmation)
-- Added autostart conflict detection
-- Added Moonraker restart verification
-- Added uninstall confirmation
-- Added restore mode for firmware updates
-- Added clean directory structure under `/userdata`
-
-### Improved
-- Installer reliability and safety
-- Error messages and user guidance
-- Webcam configuration defaults
-- Autostart component stability
-- Overall repo structure and documentation
-
-### Notes
-This is the first stable, production-ready release of the Snapmaker U1 Obico installer.  
-Copy of https://github.com/D3LZ-D3LZ-D3LZ/u1obico with many improvements.
+## v1.0.0 — Initial Release
+- Basic Obico installation for Snapmaker U1
+- Manual linking flow
+- Basic autostart component
+- No cleanup or update logic

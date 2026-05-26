@@ -710,6 +710,34 @@ restore_obico() {
 }
 
 # =========================
+# PRE-INSTALL CLEANUP
+# =========================
+
+pre_install_cleanup() {
+    warn "Running pre-install cleanup..."
+
+    # Remove leftover temp dirs
+    rm -rf "$OBICO_DIR.tmp" "$OBICO_VENV.tmp" /tmp/moonraker-obico.tar.gz 2>/dev/null || true
+
+    # Remove old Obico source + venv
+    rm -rf "$OBICO_DIR" "$OBICO_VENV" 2>/dev/null || true
+
+    # Remove old Moonraker autostart components
+    rm -f "$MOONRAKER_COMPONENT" "$MOONRAKER_EXTRA_CFG" "$MOONRAKER_VERSION_CFG" 2>/dev/null || true
+
+    # Remove pip cache
+    rm -rf /root/.cache/pip 2>/dev/null || true
+
+    # Ensure logs directory exists
+    mkdir -p "$OBICO_LOGS"
+
+    # Prune old logs (>5MB or >1 backup)
+    if [ -f "$OBICO_LOGS/moonraker-obico.log.1" ]; then
+        rm -f "$OBICO_LOGS/moonraker-obico.log.2" 2>/dev/null || true
+    fi
+}
+
+# =========================
 # UPDATE OBICO
 # =========================
 
@@ -721,6 +749,7 @@ update_obico() {
     check_extended_firmware
     check_python
     check_moonraker_paths
+    pre_install_cleanup 
 
     fetch_latest_tag "$COMMAND_ARG"
 
@@ -750,6 +779,7 @@ install_obico() {
     check_extended_firmware
     check_python
     check_moonraker_paths
+    pre_install_cleanup
 
     if check_existing_install; then
         warn "Existing installation detected. Continuing will overwrite files."

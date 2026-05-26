@@ -51,7 +51,6 @@ The installer will:
 - Restart Moonraker  
 - Confirm Obico is running  
 
-
 ---
 
 # 🌐 Obico Cloud vs Self‑Hosted Obico
@@ -66,18 +65,12 @@ Fully supported.
 During installation you will be prompted:
 
 ```
-During installation you will be prompted:
-
 Choose your Obico server type:
   1) Obico Cloud (default)
   2) Self-Hosted Obico
-
-If you choose Self-Hosted, you will then enter your custom server URL, for example:
-  http://192.168.1.50:3334
-  https://obico.mydomain.com
 ```
 
-Enter your custom server URL, for example:
+If you choose Self‑Hosted, you will then enter your custom server URL, for example:
 
 ```
 http://192.168.1.50:3334
