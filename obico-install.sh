@@ -477,7 +477,7 @@ write_version_file() {
         return
     fi
 
-    # New safe location outside Moonraker's config tree
+    # Safe location outside Moonraker config
     MOONRAKER_VERSION_CFG="/userdata/obico-version.cfg"
 
     (
