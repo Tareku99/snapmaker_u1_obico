@@ -58,7 +58,7 @@ INSTALL_NO_AUTOSTART=0
 UNINSTALL_KEEP_CONFIG=0
 
 COMMAND=""
-COMMAND_ARG=""   # e.g. version for install/update
+COMMAND_ARG=""
 
 log()     { echo -e "${GREEN}[obico]${NC} $1"; }
 warn()    { echo -e "${YELLOW}[obico]${NC} $1"; }
@@ -66,7 +66,6 @@ error()   { echo -e "${RED}[obico]${NC} $1"; exit 1; }
 info()    { echo -e "${BLUE}[obico]${NC} $1"; }
 
 run_cmd() {
-    # Wrapper that respects --dry-run and --debug
     if [ "$DEBUG" -eq 1 ]; then
         echo -e "${BLUE}[debug]${NC} $*"
     fi
@@ -78,25 +77,38 @@ run_cmd() {
 
 confirm_yes() {
     local ANSWER
-
-    # Flush any leftover input (BusyBox-safe)
     read -t 0.01 -n 10000 discard 2>/dev/null || true
 
     while true; do
         printf "%s [y/N]: " "$1"
         read ANSWER
         case "${ANSWER,,}" in
-            y|yes)
-                return 0
-                ;;
-            n|no|"")
-                return 1
-                ;;
-            *)
-                echo "Please enter yes or no."
-                ;;
+            y|yes) return 0 ;;
+            n|no|"") return 1 ;;
+            *) echo "Please enter yes or no." ;;
         esac
     done
+}
+
+# =========================
+# GENERALIZED SPINNER
+# =========================
+# Usage:
+#   long_command & 
+#   show_spinner $! "Doing something"
+#
+show_spinner() {
+    local pid=$1
+    local label="$2"
+    local delay=0.1
+    local spin='-\|/'
+
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r[%c] %s..." "${spin:0:1}" "$label"
+        spin="${spin:1}${spin:0:1}"
+        sleep $delay
+    done
+    printf "\r[✓] %s complete.      \n" "$label"
 }
 
 # =========================
@@ -129,24 +141,15 @@ Commands:
   doctor         Run health checks
 
 Global flags:
-  --debug        Verbose output, show commands and details
-  --dry-run      Show what would happen, but do not change the system
+  --debug        Verbose output
+  --dry-run      Do not modify system
 
 Install flags:
-  --no-link       Do not run the Obico linking flow
-  --no-autostart  Do not install the Moonraker autostart component
+  --no-link       Skip linking flow
+  --no-autostart  Skip autostart component
 
 Uninstall flags:
-  --keep-config   Keep config and logs when uninstalling
-
-Examples:
-  bash obico-install.sh install
-  bash obico-install.sh --debug install --no-link
-  bash obico-install.sh install v4.0.0
-  bash obico-install.sh update
-  bash obico-install.sh update v4.0.0
-  bash obico-install.sh uninstall --keep-config
-  bash obico-install.sh --dry-run doctor
+  --keep-config   Preserve config + logs
 EOF
 }
 
@@ -158,35 +161,23 @@ parse_args() {
         local arg="${args[$i]}"
 
         case "$arg" in
-            --debug)
-                DEBUG=1
-                ;;
-            --dry-run)
-                DRY_RUN=1
-                ;;
+            --debug) DEBUG=1 ;;
+            --dry-run) DRY_RUN=1 ;;
             install|uninstall|restore|update|backup|doctor)
                 if [ -n "$COMMAND" ]; then
                     error "Multiple commands specified: '$COMMAND' and '$arg'"
                 fi
                 COMMAND="$arg"
                 ;;
-            --no-link)
-                INSTALL_NO_LINK=1
-                ;;
-            --no-autostart)
-                INSTALL_NO_AUTOSTART=1
-                ;;
-            --keep-config)
-                UNINSTALL_KEEP_CONFIG=1
-                ;;
+            --no-link) INSTALL_NO_LINK=1 ;;
+            --no-autostart) INSTALL_NO_AUTOSTART=1 ;;
+            --keep-config) UNINSTALL_KEEP_CONFIG=1 ;;
             -h|--help)
                 print_usage
                 exit 0
                 ;;
             *)
-                # First non-flag, non-command after command is treated as COMMAND_ARG
                 if [ -z "$COMMAND" ]; then
-                    # No command yet: treat as command if matches, else error
                     error "Unknown argument before command: $arg"
                 else
                     if [ -z "$COMMAND_ARG" ]; then
@@ -200,24 +191,23 @@ parse_args() {
         i=$((i + 1))
     done
 
-    # Default command if none specified
     if [ -z "$COMMAND" ]; then
         COMMAND="install"
     fi
 }
 
 # =========================
-# CORE VALIDATION FUNCTIONS
+# CORE VALIDATION
 # =========================
 
 check_root() {
-    [ "$(id -u)" = "0" ] || error "Please run as root: bash obico-install.sh"
+    [ "$(id -u)" = "0" ] || error "Please run as root."
 }
 
 check_internet() {
-    log "Checking internet connectivity..."
-    if ! run_cmd curl -s --max-time 5 https://api.github.com > /dev/null 2>&1; then
-        error "No internet access or GitHub API unreachable."
+    log "Checking internet..."
+    if ! run_cmd curl -s --max-time 5 https://api.github.com >/dev/null; then
+        error "No internet or GitHub unreachable."
     fi
     log "Internet OK."
 }
@@ -229,20 +219,18 @@ check_extended_firmware() {
 }
 
 check_python() {
-    command -v python3 >/dev/null 2>&1 || error "python3 not found."
+    command -v python3 >/dev/null 2>&1 || error "python3 missing."
     python3 - <<EOF || error "Python venv module missing."
 import venv
 EOF
-    log "Python and venv module OK."
+    log "Python OK."
 }
 
 check_moonraker_paths() {
     [ -d /home/lava/moonraker/moonraker/components ] || \
-        error "Moonraker components directory missing."
-
+        error "Moonraker components missing."
     [ -d /home/lava/printer_data/config/extended/moonraker ] || \
-        error "Moonraker extended config directory missing."
-
+        error "Moonraker extended config missing."
     log "Moonraker paths OK."
 }
 
@@ -261,57 +249,57 @@ check_existing_install() {
 fetch_latest_tag() {
     if [ -n "$1" ]; then
         OBICO_TAG="$1"
-        log "Using user-specified version: $OBICO_TAG"
+        log "Using version: $OBICO_TAG"
         return
     fi
 
-    log "Fetching latest Obico release tag..."
+    log "Fetching latest Obico release..."
 
     OBICO_TAG=$(curl -s https://api.github.com/repos/TheSpaghettiDetective/moonraker-obico/releases/latest \
         | grep '"tag_name"' \
         | head -n1 \
         | sed 's/.*"tag_name": "//; s/".*//')
 
-    [ -z "$OBICO_TAG" ] && error "Failed to fetch latest release tag."
+    [ -z "$OBICO_TAG" ] && error "Failed to fetch release tag."
 
-    log "Latest release detected: $OBICO_TAG"
+    log "Latest release: $OBICO_TAG"
 }
 
 # =========================
-# DOWNLOAD + INTEGRITY CHECK
+# DOWNLOAD + EXTRACT
 # =========================
 
 download_obico() {
     log "Downloading moonraker-obico $OBICO_TAG..."
 
-    # Clean up any previous failed or partial installs
     run_cmd rm -rf "$OBICO_DIR.tmp"
     run_cmd rm -rf "$OBICO_DIR"
     run_cmd mkdir -p "$OBICO_DIR"
-
-    # Prepare temp directory
     run_cmd mkdir -p "$OBICO_DIR.tmp"
 
     local URL="https://github.com/TheSpaghettiDetective/moonraker-obico/archive/refs/tags/$OBICO_TAG.tar.gz"
 
     run_cmd curl -fSL "$URL" -o /tmp/moonraker-obico.tar.gz || \
-        error "Failed to download Obico release."
+        error "Download failed."
 
-    # Validate tarball integrity
     if ! tar -tzf /tmp/moonraker-obico.tar.gz >/dev/null 2>&1; then
-        error "Downloaded tarball is corrupted."
+        error "Downloaded tarball corrupted."
     fi
 
-    run_cmd tar --strip-components=1 -xzf /tmp/moonraker-obico.tar.gz -C "$OBICO_DIR.tmp"
-    run_cmd rm -f /tmp/moonraker-obico.tar.gz
+    log "Extracting Obico source..."
 
-    # Move extracted source into place
+    tar --strip-components=1 -xzf /tmp/moonraker-obico.tar.gz -C "$OBICO_DIR.tmp" &
+    show_spinner $! "Extracting Obico source"
+    wait
+
+    run_cmd rm -f /tmp/moonraker-obico.tar.gz
     run_cmd mv "$OBICO_DIR.tmp" "$OBICO_DIR"
+
     log "Obico source extracted."
 }
 
 # =========================
-# VENV HEALTH CHECK
+# VENV HEALTH
 # =========================
 
 check_venv_health() {
@@ -319,21 +307,21 @@ check_venv_health() {
         return 0
     fi
 
-    warn "Existing Obico venv detected. Checking health..."
+    warn "Existing venv detected. Checking..."
 
     if [ ! -f "$OBICO_VENV/bin/python" ] || \
        [ ! -f "$OBICO_VENV/bin/pip" ] || \
        [ ! -d "$OBICO_VENV/lib" ]; then
 
-        warn "The existing venv appears corrupted."
+        warn "Venv appears corrupted."
 
         if [ "$DRY_RUN" -eq 1 ]; then
             warn "Dry-run: would recreate venv."
             return 0
         fi
 
-        if ! confirm_yes "Recreate the venv?"; then
-            error "Aborting installation due to corrupted venv."
+        if ! confirm_yes "Recreate venv?"; then
+            error "Aborting due to corrupted venv."
         fi
 
         run_cmd rm -rf "$OBICO_VENV"
@@ -348,12 +336,22 @@ create_venv() {
     log "Creating Python virtual environment..."
 
     run_cmd rm -rf "$OBICO_VENV.tmp"
-    run_cmd python3 -m venv "$OBICO_VENV.tmp"
+
+    python3 -m venv "$OBICO_VENV.tmp" &
+    show_spinner $! "Creating virtual environment"
+    wait
 
     if [ "$DRY_RUN" -eq 0 ]; then
         source "$OBICO_VENV.tmp/bin/activate"
-        pip install --upgrade pip
-        pip install -r "$OBICO_DIR/requirements.txt"
+
+        pip install --upgrade pip &
+        show_spinner $! "Upgrading pip"
+        wait
+
+        pip install -r "$OBICO_DIR/requirements.txt" &
+        show_spinner $! "Installing Python dependencies"
+        wait
+
         deactivate
     fi
 
@@ -374,7 +372,7 @@ rotate_logs() {
         local SIZE
         SIZE=$(stat -c%s "$LOGFILE" 2>/dev/null || echo 0)
         if [ "$SIZE" -gt 5000000 ]; then
-            warn "Rotating Obico log (size > 5MB)..."
+            warn "Rotating Obico log..."
             run_cmd mv "$LOGFILE" "$LOGFILE.1"
         fi
     fi
@@ -389,7 +387,7 @@ create_config() {
     run_cmd mkdir -p "$OBICO_LOGS"
 
     if [ "$DRY_RUN" -eq 1 ]; then
-        warn "Dry-run: would prompt for Obico URL and write config."
+        warn "Dry-run: would prompt for URL and write config."
         return
     fi
 
@@ -398,7 +396,6 @@ create_config() {
     echo "  1) Obico Cloud (app.obico.io)"
     echo "  2) Self-Hosted Obico"
 
-    # Force explicit choice, no auto-skip
     while true; do
         printf "Enter 1 or 2: "
         read SERVER_CHOICE
@@ -424,7 +421,6 @@ create_config() {
         esac
     done
 
-    # BusyBox-safe LAN IP detection (Paxx Extended)
     PRINTER_IP=$(ip addr show | awk '/inet / && !/127.0.0.1/ { sub("/.*", "", $2); print $2; exit }')
 
     cat > "$OBICO_CFG" << EOF
@@ -449,7 +445,7 @@ EOF
 }
 
 # =========================
-# LINK PRINTER (RESPECTS --no-link)
+# LINK PRINTER
 # =========================
 
 link_printer() {
@@ -489,7 +485,7 @@ EOF
 }
 
 # =========================
-# BACKUP (BASE IMPLEMENTATION)
+# BACKUP
 # =========================
 
 backup_obico() {
@@ -510,7 +506,7 @@ backup_obico() {
 }
 
 # =========================
-# AUTOSTART (RESPECTS --no-autostart)
+# AUTOSTART
 # =========================
 
 check_autostart_conflict() {
@@ -584,10 +580,10 @@ verify_moonraker_restart() {
     log "Waiting for Moonraker to come back online..."
 
     for i in {1..20}; do
-        if curl -s http://127.0.0.1:7125/server/info >/dev/null 2>&1; then
+        curl -s http://127.0.0.1:7125/server/info >/dev/null 2>&1 && {
             log "Moonraker is online."
             return
-        fi
+        }
         sleep 1
     done
 
@@ -599,7 +595,7 @@ verify_moonraker_restart() {
 # =========================
 
 verify_obico() {
-    if pgrep -f moonraker_obico.app > /dev/null; then
+    if pgrep -f moonraker_obico.app >/dev/null; then
         log "✓ Obico is running."
     else
         warn "Obico is not running yet. Check logs:"
@@ -608,7 +604,7 @@ verify_obico() {
 }
 
 # =========================
-# DOCTOR (SYSTEM HEALTH CHECK)
+# DOCTOR
 # =========================
 
 doctor_obico() {
@@ -663,11 +659,11 @@ doctor_obico() {
 }
 
 # =========================
-# UNINSTALL (RESPECTS --keep-config)
+# UNINSTALL
 # =========================
 
 uninstall_obico() {
-    warn "You are about to uninstall Obico from this printer."
+    warn "You are about to uninstall Obico."
 
     if [ "$DRY_RUN" -eq 1 ]; then
         warn "Dry-run: would uninstall Obico."
@@ -759,8 +755,6 @@ install_obico() {
         fi
     fi
 
-
-    # Enable persistence
     run_cmd touch /oem/.debug
 
     fetch_latest_tag "$COMMAND_ARG"
@@ -781,34 +775,20 @@ install_obico() {
 }
 
 # =========================
-# MAIN COMMAND ROUTER
+# MAIN ROUTER
 # =========================
 
 main() {
     parse_args "$@"
 
     case "$COMMAND" in
-        install)
-            install_obico
-            ;;
-        uninstall)
-            uninstall_obico
-            ;;
-        restore)
-            restore_obico
-            ;;
-        update)
-            update_obico
-            ;;
-        backup)
-            backup_obico
-            ;;
-        doctor)
-            doctor_obico
-            ;;
-        *)
-            error "Unknown command: $COMMAND"
-            ;;
+        install)   install_obico ;;
+        uninstall) uninstall_obico ;;
+        restore)   restore_obico ;;
+        update)    update_obico ;;
+        backup)    backup_obico ;;
+        doctor)    doctor_obico ;;
+        *) error "Unknown command: $COMMAND" ;;
     esac
 }
 
