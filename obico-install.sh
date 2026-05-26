@@ -262,15 +262,12 @@ fetch_latest_tag() {
     # If user passed a version manually, use it
     if [ -n "$1" ]; then
         OBICO_TAG="$1"
-        log "Using version: $OBICO_TAG"
         return
     fi
 
-    # Default: use master branch (most reliable, never rate-limited)
+    # Default: use master branch
     OBICO_TAG="master"
-    log "Using branch: master (no GitHub API required)"
 }
-
 
 # =========================
 # DOWNLOAD + EXTRACT
