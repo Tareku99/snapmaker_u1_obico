@@ -284,7 +284,12 @@ fetch_latest_tag() {
 download_obico() {
     log "Downloading moonraker-obico $OBICO_TAG..."
 
+    # Clean up any previous failed or partial installs
     run_cmd rm -rf "$OBICO_DIR.tmp"
+    run_cmd rm -rf "$OBICO_DIR"
+    run_cmd mkdir -p "$OBICO_DIR"
+
+    # Prepare temp directory
     run_cmd mkdir -p "$OBICO_DIR.tmp"
 
     local URL="https://github.com/TheSpaghettiDetective/moonraker-obico/archive/refs/tags/$OBICO_TAG.tar.gz"
@@ -300,6 +305,7 @@ download_obico() {
     run_cmd tar --strip-components=1 -xzf /tmp/moonraker-obico.tar.gz -C "$OBICO_DIR.tmp"
     run_cmd rm -f /tmp/moonraker-obico.tar.gz
 
+    # Move extracted source into place
     run_cmd mv "$OBICO_DIR.tmp" "$OBICO_DIR"
     log "Obico source extracted."
 }
@@ -396,6 +402,7 @@ create_config() {
     while true; do
         printf "Enter 1 or 2: "
         read SERVER_CHOICE
+        SERVER_CHOICE=$(echo "$SERVER_CHOICE" | tr -d '[:space:]')
 
         case "$SERVER_CHOICE" in
             1)
