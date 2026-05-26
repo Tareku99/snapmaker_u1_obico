@@ -79,7 +79,8 @@ run_cmd() {
 confirm_yes() {
     local ANSWER
     while true; do
-        read -p "$1 [y/N]: " ANSWER
+        printf "%s [y/N]: " "$1"
+        read ANSWER
         case "${ANSWER,,}" in
             y|yes)
                 return 0
@@ -321,7 +322,7 @@ check_venv_health() {
             return 0
         fi
 
-        if ! confirm_yes "Recreate the venv? [y/N] "; then
+        if ! confirm_yes "Recreate the venv? [y/N]"; then
             error "Aborting installation due to corrupted venv."
         fi
 
@@ -657,7 +658,7 @@ uninstall_obico() {
         return
     fi
 
-    confirm_yes "Are you sure? [y/N] " || error "Uninstall cancelled."
+    confirm_yes "Are you sure? [y/N]" || error "Uninstall cancelled."
 
     warn "Stopping Obico..."
     run_cmd pkill -f moonraker_obico.app || true
@@ -738,7 +739,7 @@ install_obico() {
     if check_existing_install; then
         warn "Existing installation detected. Continuing will overwrite files."
         if [ "$DRY_RUN" -eq 0 ]; then
-            confirm_yes "Continue? [y/N] " || error "Installation cancelled."
+            confirm_yes "Continue? [y/N]" || error "Installation cancelled."
         fi
     fi
 
