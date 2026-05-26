@@ -78,6 +78,10 @@ run_cmd() {
 
 confirm_yes() {
     local ANSWER
+
+    # Flush any leftover input (BusyBox-safe)
+    read -t 0.01 -n 10000 discard 2>/dev/null || true
+
     while true; do
         printf "%s [y/N]: " "$1"
         read ANSWER
