@@ -334,18 +334,20 @@ check_venv_health() {
 create_venv() {
     log "Creating Python virtual environment..."
 
-    (
-        rm -rf "$OBICO_VENV.tmp"
-        python3 -m venv "$OBICO_VENV.tmp"
-        source "$OBICO_VENV.tmp/bin/activate"
-        pip install --upgrade pip >/dev/null 2>&1
-        pip install -r "$OBICO_DIR/requirements.txt" >/dev/null 2>&1
-        deactivate
-        rm -rf "$OBICO_VENV"
-        mv "$OBICO_VENV.tmp" "$OBICO_VENV"
-    ) &
-    show_spinner $! "Creating Python virtual environment"
-    wait
+    rm -rf "$OBICO_VENV.tmp"
+
+    # Run in foreground so errors are visible
+    if ! python3 -m venv "$OBICO_VENV.tmp"; then
+        error "Failed to create Python venv. The Snapmaker firmware may be missing python3-venv."
+    fi
+
+    source "$OBICO_VENV.tmp/bin/activate"
+    pip install --upgrade pip
+    pip install -r "$OBICO_DIR/requirements.txt"
+    deactivate
+
+    rm -rf "$OBICO_VENV"
+    mv "$OBICO_VENV.tmp" "$OBICO_VENV"
 
     log "Venv created at $OBICO_VENV"
 }
