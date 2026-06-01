@@ -77,9 +77,102 @@ Choose your Obico server type:
 Enter your server URL, for example:
 
 ```
-http://192.168.1.69:3334
+http://<unraid-ip>:3334
 https://obico.mydomain.com
 ```
+
+---
+
+# 🧩 Unraid Setup (Optional)
+
+If you want to run **Obico Server** on your Unraid system (Cloud alternative or for Self‑Hosted setups), there are two official resources you can use:
+
+## 📦 1. Community Docker Template (imagegenius)
+A maintained monolithic Obico Server container for Unraid:
+
+<img width="386" height="278" alt="image" src="https://github.com/user-attachments/assets/8a3efa4c-7e86-443b-be78-bef91d2f6cf2" />
+
+**Repository:**  
+https://github.com/imagegenius/docker-obico
+
+### Installation (Unraid Apps)
+1. Open the **Apps** tab in Unraid.  
+2. Search for **Obico**.  
+3. Select the template by **imagegenius**.  
+4. Configure required environment variables:
+   - `HOST_IP`
+   - `REDIS_URL`
+   - Any additional variables listed in the template README  
+5. Deploy the container.  
+6. Access the Obico web UI at:  
+   ```
+   http://<unraid-ip>:3334
+   ```
+
+This is the easiest way to run a full Obico Server on Unraid.
+
+---
+
+## 📘 2. Official Obico Unraid Guide
+The Obico team provides a platform‑specific guide for Unraid:
+
+**Official Documentation:**  
+https://www.obico.io/docs/server-guides/platform-specific/unraid_guide/
+
+This guide covers:
+- Preparing your Unraid environment  
+- Required dependencies  
+- Docker configuration  
+- Networking considerations  
+- Troubleshooting  
+
+---
+
+## 📝 Notes for Snapmaker U1 Users
+- Your Snapmaker U1 will link to your **Unraid‑hosted Obico Server** the same way it links to Obico Cloud.  
+- During installation, choose **Self‑Hosted Obico** and enter your Unraid server URL, for example:  
+  ```
+  http://<unraid-ip>:3334
+  ```
+- All features supported by Moonraker‑Obico work normally with a self‑hosted server.
+
+---
+
+# 🐳 Normal Docker Install (Official Obico Guide)
+
+If you want to deploy a **standard Obico Server** on Linux, macOS, or Windows using Docker + Docker Compose, use the official upstream installation guide:
+
+**Official Docker Install Guide:**  
+https://www.obico.io/docs/server-guides/install/
+
+### Summary of the Process
+
+1. Install **Docker** and **Docker Compose**.  
+2. Clone the official Obico Server repository:
+   ```bash
+   git clone -b release https://github.com/TheSpaghettiDetective/obico-server.git
+   ```
+3. Enter the directory:
+   ```bash
+   cd obico-server
+   ```
+4. Start the server:
+   ```bash
+   docker compose up -d
+   ```
+5. Access the web UI:
+   ```
+   http://<server-ip>:3334
+   ```
+
+### When to Use This Method
+
+Use this method if you want:
+
+- A **full, official Obico Server** deployment  
+- Maximum configuration control  
+- A standard Docker environment (not Unraid)  
+- The setup recommended by the Obico developers  
 
 ---
 
@@ -302,11 +395,11 @@ bash obico-install.sh doctor
 
 # 📜 Changelog
 See the full version history here:  
-[CHANGELOG](CHANGELOG.md)
+CHANGELOG.md
 
 ---
 
 # 📄 License
 This project is licensed under the MIT License.  
 See the full text here:  
-[LICENSE](LICENSE)
+LICENSE
