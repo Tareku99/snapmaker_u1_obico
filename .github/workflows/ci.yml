@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Check installer syntax and help output
+        id: validate
+        shell: bash
+        run: |
+          bash -n obico-install.sh
+          bash obico-install.sh --help | grep -F 'Usage:'
+
+      - name: Report validation result
+        if: always()
+        uses: Tareku99/.github/.github/actions/ci-summary@04dd88f13b5c0b4a07d66ddd6da00522509abb52
+        with:
+          test-outcome: ${{ steps.validate.outcome }}
+          source-sha: ${{ github.sha }}
+          source-ref: ${{ github.head_ref || github.ref_name }}
