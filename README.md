@@ -401,5 +401,8 @@ CHANGELOG.md
 
 # 📄 License
 This project is licensed under the MIT License.  
-See the full text here:  
-LICENSE
+See [LICENSE.md](LICENSE.md).
+
+## Development checks
+
+GitHub Actions checks the Bash installer syntax and its help output. To report an installer issue, use this repository’s Issues tab and include your Paxx firmware version and relevant installer output.
