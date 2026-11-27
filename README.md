@@ -1,4 +1,4 @@
-# 🚀 Obico for Snapmaker U1 (Extended Firmware)
+# Snapmaker U1 Obico Installer
 
 AI‑powered print monitoring and failure detection for the **Snapmaker U1**, using **Moonraker‑Obico** and the **Paxx Extended Firmware**.
 
@@ -35,7 +35,7 @@ SSH into your Snapmaker U1 and run:
 
 ### 1. Download the installer
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Tareku99/snapmaker_u1_obico/main/obico-install.sh?$(date +%s)" -o /tmp/obico-install.sh
+curl -fsSL "https://raw.githubusercontent.com/Tareku99/snapmaker-u1-obico-installer/main/obico-install.sh?$(date +%s)" -o /tmp/obico-install.sh
 ```
 
 ### 2. Run the installer
@@ -389,7 +389,7 @@ bash obico-install.sh doctor
 - **D3LZ Community U1 Obico Work**  
   https://github.com/D3LZ-D3LZ-D3LZ/u1obico
 - **This Installer**  
-  https://github.com/Tareku99/snapmaker_u1_obico
+  https://github.com/Tareku99/snapmaker-u1-obico-installer
 
 ---
 
