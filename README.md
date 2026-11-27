@@ -6,12 +6,11 @@ This installer automatically:
 
 - Fetches the latest Obico source (master branch)
 - Installs it inside a Python virtual environment
-- Creates a **self‑healing Moonraker autostart component**
+- Configures Moonraker to launch Obico when Klippy is ready
 - Enables **MJPEG streaming** (fastest internal camera mode)
 - Falls back to snapshot mode if MJPEG is unavailable
 - Links your printer to Obico (Cloud or Self‑Hosted)
-- Automatically restores itself after firmware updates
-- Repairs permissions and persistence on boot
+- Includes a `restore` command for permissions, persistence and existing autostart configuration
 - Provides update, backup, and health‑check tools
 
 ---
@@ -51,9 +50,9 @@ The installer will:
 - Install into `/userdata/obico-venv`  
 - Create config + logs  
 - Link your printer (unless `--no-link` is used)  
-- Install a **self‑healing autostart component**  
+- Install a Moonraker autostart component
 - Restart Moonraker  
-- Confirm Obico is running  
+- Check whether Obico starts after Moonraker restarts
 
 ---
 
@@ -198,9 +197,10 @@ The installer uses:
 /userdata/obico-version.cfg    (installer + version metadata)
 ```
 
-Everything is isolated and safe across reboots.
+These directories hold the installed client and its data. The Moonraker
+autostart files live outside `/userdata`.
 
-## Self‑Healing Autostart Component
+## Moonraker Autostart Component
 A Moonraker component is created at:
 
 ```
@@ -213,13 +213,8 @@ And enabled via:
 /home/lava/printer_data/config/extended/moonraker/05_obico.cfg
 ```
 
-On every boot, it automatically:
-
-- Re‑enables persistence if wiped by firmware update  
-- Fixes permissions  
-- Ensures Obico starts cleanly  
-
-This makes the installation **self‑healing**.
+Moonraker launches Obico after Klippy reports that it is ready. Use
+`install --no-autostart` if you manage the Obico process yourself.
 
 ---
 
@@ -276,19 +271,18 @@ bash obico-install.sh install --no-link
 
 ---
 
-# 🔄 Automatic Restore After Firmware Updates
+# 🔄 Restore After Firmware Updates
 
-Paxx firmware updates wipe overlay persistence.
+If Obico stops starting after a firmware update, run:
 
-This installer now includes **full auto‑restore**:
+```bash
+bash obico-install.sh restore
+```
 
-### ✔ Auto‑restore during install  
-### ✔ Auto‑restore on boot  
-### ✔ Auto‑restore after updates  
-### ✔ Auto‑repair of permissions  
-### ✔ No user action required  
-
-Your Obico install remains intact automatically.
+The command re-enables persistence, reapplies permissions, and recreates the
+autostart component if the Moonraker config entry is still present. If the entry
+is also missing and you relied on autostart, back up the config first. Running
+`install` again sets up a new config and prompts you to link the printer.
 
 ---
 
@@ -313,6 +307,10 @@ Keep config + logs:
 ```bash
 bash obico-install.sh uninstall --keep-config
 ```
+
+This saves the current config to
+`/userdata/obico-backup/moonraker-obico.cfg` and leaves
+`/userdata/obico-logs` in place. The saved config may contain an Obico access token.
 
 ---
 
@@ -348,6 +346,9 @@ bash obico-install.sh --debug install
 bash obico-install.sh --dry-run install
 ```
 
+Dry-run prints the planned changes without downloading files, asking for input,
+or restarting services. `doctor` runs read-only health checks.
+
 ## Update Obico
 ```bash
 bash obico-install.sh update
@@ -358,6 +359,11 @@ Or update to a specific version:
 ```bash
 bash obico-install.sh update v4.0.0
 ```
+
+Updates keep the existing Obico configuration, including the printer link, and
+preserve the existing Moonraker autostart files. The installer downloads the
+replacement source before stopping Obico and restores the previous files if
+dependency installation or Moonraker verification fails.
 
 ## Backup config + logs
 ```bash
@@ -405,4 +411,7 @@ See [LICENSE.md](LICENSE.md).
 
 ## Development checks
 
-GitHub Actions checks the Bash installer syntax and its help output. To report an installer issue, use this repository’s Issues tab and include your Paxx firmware version and relevant installer output.
+Run `bash tests/installer.sh` on Linux to run the same installer regression
+checks as GitHub Actions. The tests use a temporary directory and stub printer
+services. To report an installer issue, use this repository’s Issues tab and
+include your Paxx firmware version and relevant installer output.
