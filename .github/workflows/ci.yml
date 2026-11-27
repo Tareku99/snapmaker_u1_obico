@@ -19,12 +19,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check installer syntax and help output
+      - name: Run installer regression checks
         id: validate
         shell: bash
-        run: |
-          bash -n obico-install.sh
-          bash obico-install.sh --help | grep -F 'Usage:'
+        run: bash tests/installer.sh
 
       - name: Report validation result
         if: always()
