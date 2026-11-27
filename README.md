@@ -1,56 +1,89 @@
 # Snapmaker U1 Obico Installer
 
-Install [Moonraker-Obico](https://github.com/TheSpaghettiDetective/moonraker-obico) on your Snapmaker U1 for remote print monitoring and failure detection. The installer supports Obico Cloud and self-hosted Obico.
+This installer runs Moonraker-Obico on a Snapmaker U1 with Paxx Extended Firmware. You can link the printer to Obico Cloud or to your own Obico server for remote monitoring and print failure detection.
 
-## Install
+## Install and link your printer
 
-You need a Snapmaker U1 running [Paxx Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware), root access over SSH, internet access from the printer, and an Obico account.
+You need [Paxx Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware), root access over SSH, an internet connection from the printer to download the client and its Python dependencies, and an Obico account.
 
-SSH into the printer as root and run:
+**1. Download the installer.** Open an SSH session to the printer as root. Use the same session for the commands below.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Tareku99/snapmaker-u1-obico-installer/main/obico-install.sh \
-  -o /tmp/obico-install.sh &&
-  bash /tmp/obico-install.sh install
+curl -fsSLo /tmp/obico-install.sh \
+  https://raw.githubusercontent.com/Tareku99/snapmaker-u1-obico-installer/main/obico-install.sh
 ```
 
-1. Choose **Obico Cloud** or **Self-Hosted Obico**. For self-hosted, enter the server URL the printer can reach, including the port if needed, such as `http://192.168.1.100:3334`.
-2. Follow the prompts to link the printer. Moonraker starts Obico once Klippy is ready.
+**2. Run it and choose your server.**
 
-Use `install --no-link` to skip linking, or `install --no-autostart` if you manage the Obico process yourself.
+```bash
+bash /tmp/obico-install.sh install
+```
 
-For server setup, see the [Obico Docker guide](https://www.obico.io/docs/server-guides/install/), the [Obico Unraid guide](https://www.obico.io/docs/server-guides/platform-specific/unraid_guide/), or the [community Unraid container](https://github.com/imagegenius/docker-obico).
+- Choose **Obico Cloud** to use [app.obico.io](https://app.obico.io).
+- Choose **Self-Hosted Obico** if you already have a server. Enter its full address as seen by the printer, including the port if needed, such as `http://192.168.1.100:3334`. For server setup, see the [Obico Docker guide](https://www.obico.io/docs/server-guides/install/), the [Obico Unraid guide](https://www.obico.io/docs/server-guides/platform-specific/unraid_guide/), or the [community Unraid container](https://github.com/imagegenius/docker-obico).
 
-## Manage Obico
+**3. Follow the linking prompts.** The installer restarts Moonraker, which launches Obico shortly after Klippy is ready. Check that the printer appears online in Obico.
 
-Run these commands over SSH on the printer using the downloaded installer.
+If you want to link later, add `--no-link` to the install command. When you are ready to link, run:
 
-| Command | What it does |
+```bash
+cd /userdata/moonraker-src
+/userdata/obico-venv/bin/python -m moonraker_obico.link -c moonraker-obico.cfg
+```
+
+After linking, run `bash /tmp/obico-install.sh restore` to restart Moonraker and reload the config. If you manage the Obico process yourself, use `install --no-autostart` and restart that process after linking.
+
+## Update an existing installation
+
+Download a fresh copy of the installer with the command above, then run:
+
+```bash
+bash /tmp/obico-install.sh update
+```
+
+`update` keeps your server settings, printer link, and existing autostart settings. The installer downloads the replacement before stopping Obico. It attempts to restore the previous installation if dependency installation or the Moonraker restart check fails. If Moonraker comes up but Obico has yet to start, the installer prints a warning and keeps the update. Check the logs and the printer's status in Obico.
+
+Use `install` when setting up Obico for the first time or when you intend to replace the configuration and link again. Both commands download from upstream `master` by default. To select a release, add its tag after the command, for example `bash /tmp/obico-install.sh update v2.2.8`. [Upstream Obico releases](https://github.com/TheSpaghettiDetective/moonraker-obico/releases)
+
+## Back up, repair, or remove Obico
+
+| What you want to do | Command |
 | --- | --- |
-| `bash /tmp/obico-install.sh update` | Updates the client and keeps the linked config and existing autostart settings. |
-| `bash /tmp/obico-install.sh backup` | Copies the config, version information, and logs to `/userdata/obico-backup`. |
-| `bash /tmp/obico-install.sh doctor` | Checks Moonraker, the Obico process, config, disk space, and the camera snapshot URL. |
-| `bash /tmp/obico-install.sh restore` | Repairs persistence and permissions. See the firmware update notes below. |
-| `bash /tmp/obico-install.sh uninstall` | Removes Obico and its logs, then restarts Moonraker. Add `--keep-config` to save the config to the backup directory and keep the logs. |
+| Copy the config, version information, and logs to `/userdata/obico-backup` | `bash /tmp/obico-install.sh backup` |
+| Check Moonraker, Obico, disk space, and the local camera snapshot endpoint | `bash /tmp/obico-install.sh doctor` |
+| Repair persistence and permissions after a firmware update | `bash /tmp/obico-install.sh restore` |
+| Remove Obico and its logs, then restart Moonraker | `bash /tmp/obico-install.sh uninstall` |
+| Remove Obico but keep the logs and a copy of the config | `bash /tmp/obico-install.sh uninstall --keep-config` |
 
-Add `--dry-run` to preview an operation or `--help` to see all available flags.
+`uninstall --keep-config` saves the config to `/userdata/obico-backup/moonraker-obico.cfg`. The backup can contain your Obico access token.
 
-By default, `install` and `update` download Obico from `master`. To choose a specific release, pass its tag after the command, for example `update v2.2.8`. [Upstream Obico releases](https://github.com/TheSpaghettiDetective/moonraker-obico/releases)
+Add `--dry-run` to preview a change without making it, `--debug` to show extra download and staging details for install or update, or `--help` to see all options.
 
-## After a firmware update
+### If Obico stops starting after a firmware update
 
-If Obico stops launching, run `restore`. It recreates the autostart component if the Moonraker config entry survived. If the entry is also missing, back up the config before reinstalling and linking again.
+Run `restore` if the Obico config and Python environment are still present. It repairs persistence and permissions, recreates the autostart component if its Moonraker config entry survived, and restarts Moonraker. If the config entry is gone and you used autostart, back up any remaining Obico config before reinstalling and linking again.
 
 ## Troubleshooting
 
-- **Config** lives at `/userdata/moonraker-src/moonraker-obico.cfg` and may contain your Obico access token. Keep it private when sharing diagnostics.
-- **Logs** are in `/userdata/obico-logs/moonraker-obico.log`.
-- **Camera** uses `/webcam/stream.mjpg` for MJPEG and `/webcam/snapshot.jpg` for snapshots in the generated config.
-- **Reporting an issue** Include your Paxx firmware version, the command you ran, and relevant installer output in a [GitHub issue](https://github.com/Tareku99/snapmaker-u1-obico-installer/issues).
+- **Obico is offline.** Confirm Klippy is ready, run `doctor`, and check the log with `tail -n 50 /userdata/obico-logs/moonraker-obico.log`.
+- **The camera stopped working.** The generated Obico config uses the printer's IP address at install time, with `/webcam/stream.mjpg` for MJPEG and `/webcam/snapshot.jpg` for snapshots. If the printer's IP changed, check the URLs in the Obico config. `doctor` checks the local snapshot endpoint.
+- **You need help.** Include the Paxx firmware version, the command you ran, and relevant installer or log output. Remove any credentials or tokens before sharing. [Report an issue](https://github.com/Tareku99/snapmaker-u1-obico-installer/issues)
+
+### Files on the printer
+
+| File or directory | Purpose |
+| --- | --- |
+| `/userdata/moonraker-src/moonraker-obico.cfg` | Obico server, link credentials, Moonraker connection, and camera settings |
+| `/userdata/obico-logs/moonraker-obico.log` | Obico client log |
+| `/userdata/obico-venv/` | Python environment for Obico |
+| `/userdata/obico-version.cfg` | Installed client ref and installer version |
+| `/userdata/obico-backup/` | Files saved by `backup` or `uninstall --keep-config` |
+| `/home/lava/printer_data/config/extended/moonraker/05_obico.cfg` | Moonraker config entry that enables Obico autostart |
+| `/home/lava/moonraker/moonraker/components/obico_starter.py` | Moonraker component that starts the Obico process |
 
 ## Development
 
-Run `bash tests/installer.sh` on Linux to run the regression suite. The tests simulate printer services and use temporary files.
+Run `bash tests/installer.sh` from the repository on Linux. GitHub Actions runs the same tests with simulated printer services and temporary files.
 
 Thanks to [Obico](https://github.com/TheSpaghettiDetective/moonraker-obico), [Paxx Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware), and [D3LZ](https://github.com/D3LZ-D3LZ-D3LZ/u1obico).
 
