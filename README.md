@@ -45,6 +45,34 @@ bash /tmp/obico-install.sh update
 
 Use `install` when setting up Obico for the first time or when you intend to replace the configuration and link again. Both commands download from upstream `master` by default. To select a release, add its tag after the command, for example `bash /tmp/obico-install.sh update v2.2.8`. [Upstream Obico releases](https://github.com/TheSpaghettiDetective/moonraker-obico/releases)
 
+## Native live video preview
+
+Native video sends the U1's H.264 camera feed through Janus on the printer. It
+requires an ARM64 U1 running Paxx Extended Firmware with the
+`/webcam/stream.h264` endpoint and a self-hosted Obico server. Run the installer
+from `/tmp` with the printer idle because it restarts Moonraker.
+
+Once the Janus release asset is published, enable native video with
+`update --native-video` for an already-linked printer or
+`install --native-video` for a fresh setup.
+
+```bash
+cd /tmp
+bash /tmp/obico-install.sh update --native-video
+```
+
+The installer verifies the downloaded archive and stores Janus under
+`/userdata/obico-janus`. Later updates reuse that copy and keep the linked
+config. Moonraker stops the Obico client and its video processes together when
+it restarts.
+
+To test a local bundle before publication, copy the archive and its `.sha256`
+file to the printer, then run:
+
+```bash
+bash /tmp/obico-install.sh update --janus-bundle /tmp/obico-janus-u1-aarch64.tar.gz
+```
+
 ## Back up, repair, or remove Obico
 
 | What you want to do | Command |
@@ -84,6 +112,17 @@ Run `restore` if the Obico config and Python environment are still present. It r
 ## Development
 
 Run `bash tests/installer.sh` from the repository on Linux. GitHub Actions runs the same tests with simulated printer services and temporary files.
+
+To build the Janus release assets on a computer with Docker, run:
+
+```bash
+bash scripts/build-u1-janus.sh /tmp/obico-janus-release
+bash scripts/collect-janus-sources.sh /tmp/obico-janus-release
+```
+
+Package the runtime archive, its checksum, the Janus source, and the Debian
+dependency sources together in the release. The build runs a startup check
+in a clean ARM64 container.
 
 Thanks to [Obico](https://github.com/TheSpaghettiDetective/moonraker-obico), [Paxx Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware), and [D3LZ](https://github.com/D3LZ-D3LZ-D3LZ/u1obico).
 
