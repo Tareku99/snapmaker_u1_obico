@@ -116,16 +116,8 @@ Run `restore` if the Obico config and Python environment are still present. It r
 
 Run `bash tests/installer.sh` from the repository on Linux. GitHub Actions runs the same tests with simulated printer services and temporary files.
 
-To build the Janus release assets on a computer with Docker, run:
-
-```bash
-bash scripts/build-u1-janus.sh /tmp/obico-janus-release
-bash scripts/collect-janus-sources.sh /tmp/obico-janus-release
-```
-
-Package the runtime archive, its checksum, the Janus source, and the Debian
-dependency sources together in the release. The build runs a startup check
-in a clean ARM64 container.
+The [Janus release runbook](docs/janus-release.md) covers building the bundle,
+testing it on a U1, and publishing the exact archive the installer verifies.
 
 Thanks to [Obico](https://github.com/TheSpaghettiDetective/moonraker-obico), [Paxx Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware), and [D3LZ](https://github.com/D3LZ-D3LZ-D3LZ/u1obico).
 
