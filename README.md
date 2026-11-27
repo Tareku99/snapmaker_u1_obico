@@ -61,17 +61,20 @@ cd /tmp
 bash /tmp/obico-install.sh update --native-video
 ```
 
-The installer verifies the downloaded archive and stores Janus under
-`/userdata/obico-janus`. Later updates reuse that copy and keep the linked
-config. Moonraker stops the Obico client and its video processes together when
-it restarts.
+The installer verifies the exact release archive against its pinned SHA-256 and
+stores Janus and its private libraries under `/userdata/obico-janus/runtime`.
+Later updates reuse the verified copy and keep the linked config. Native video
+uses this runtime and its own PID files. Uninstall removes the managed runtime
+and leaves any other Janus installation in place.
 
-To test a local bundle before publication, copy the archive and its `.sha256`
-file to the printer, then run:
+To verify a draft release, copy its runtime archive to the printer, then run:
 
 ```bash
 bash /tmp/obico-install.sh update --janus-bundle /tmp/obico-janus-u1-aarch64.tar.gz
 ```
+
+The local archive must match the same pinned checksum as the download. An
+earlier preview installation is migrated with the update command above.
 
 ## Back up, repair, or remove Obico
 

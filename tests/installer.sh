@@ -28,6 +28,7 @@ invoke() (
     BACKUP_DIR="$USERDATA/obico-backup"
     INSTALL_LOCK="$USERDATA/.obico-installer.lock"
     JANUS_DIR="$USERDATA/obico-janus"
+    JANUS_RUNTIME="$JANUS_DIR/runtime"
     EXTENDED_CONFIG="$printer/extended"
     MOONRAKER_EXTRA_CFG="$EXTENDED_CONFIG/moonraker/05_obico.cfg"
     MOONRAKER_COMPONENT="$printer/components/obico_starter.py"
@@ -66,10 +67,6 @@ invoke() (
         mkdir -p "$3/bin"
         cat > "$3/bin/python" <<EOF
 #!/bin/bash
-if [ "\$1" = -c ]; then
-    printf 'NA.buildroot.2024.64-bit\n'
-    exit 0
-fi
 [ ! -f "$printer/fail-pip" ]
 EOF
         chmod +x "$3/bin/python"
@@ -87,8 +84,50 @@ export installer test_root
 mkdir -p "$test_root/archive/obico/moonraker_obico"
 touch "$test_root/archive/obico/requirements.txt"
 cat > "$test_root/archive/obico/moonraker_obico/webcam_stream.py" <<'EOF'
+from .janus_config_builder import build_janus_config
+JANUS_SERVER = os.getenv('JANUS_SERVER', '127.0.0.1')
+
 def h264_copy(self, webcam):
     self.start_ffmpeg(1234, f'-re -i {webcam.h264_http_url} -c:v copy')
+
+def ffmpeg_pid_file_path(self, rtp_port):
+    return '/tmp/obico-ffmpeg-{rtp_port}.pid'.format(rtp_port=rtp_port)
+
+def kill_ffmpeg_if_running(self, rtc_port):
+    with open(self.ffmpeg_pid_file_path(rtc_port)) as pid_file:
+            subprocess.run(['kill', pid_file.read()], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+EOF
+cat > "$test_root/archive/obico/moonraker_obico/janus_config_builder.py" <<'EOF'
+PRECOMPILED_DIR, REQUESTED_PRECOMPILED_VARIANT, CHOSEN_PRECOMPILED_VARIANT = find_precompiled_dir()
+
+def build_janus_config(relay):
+    (janus_bin_path, system_janus_lib_path) = find_system_janus_paths()
+EOF
+cat > "$test_root/archive/obico/moonraker_obico/janus.py" <<'EOF'
+JANUS_SERVER = os.getenv('JANUS_SERVER', '127.0.0.1')
+
+class JanusConn:
+    def start(self, janus_bin_path, ld_lib_path):
+        if os.getenv('JANUS_SERVER', '').strip() != '':
+            _logger.warning('Using an external Janus gateway. Not starting the built-in Janus gateway.')
+            self.start_janus_ws()
+            return
+
+        def run_janus_forever():
+            env={'LD_LIBRARY_PATH': ld_lib_path + ':' + os.environ.get('LD_LIBRARY_PATH', '')}
+
+        self.kill_janus_if_running()
+        run_in_thread(run_janus_forever)
+
+    def janus_pid_file_path(self):
+        return '/tmp/obico-janus-{janus_port}.pid'.format(janus_port=self.janus_port)
+
+    def kill_janus_if_running(self):
+        try:
+            with open(self.janus_pid_file_path(), 'r') as pid_file:
+                subprocess.run(['kill', pid_file.read()], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
 EOF
 tar -czf "$test_root/source.tar.gz" -C "$test_root/archive" obico
 
@@ -202,22 +241,34 @@ tar -czf "$janus_archive" -C "$janus_fixture" bin lib
 sha256sum "$janus_archive" > "$janus_archive.sha256"
 
 new_printer native
+mkdir -p "$printer/userdata/obico-janus/another-service"
+touch "$printer/userdata/obico-janus/another-service/keep"
 printf '2\nhttp://192.0.2.20:3334\n' | run install --no-link --no-autostart --native-video
 native_config="$printer/userdata/moonraker-src/moonraker-obico.cfg"
-variant_path="$printer/userdata/moonraker-src/moonraker_obico/bin/janus/precomplied/NA.buildroot.2024.64-bit"
+private_runtime="$printer/userdata/obico-janus/runtime"
+native_module="$printer/userdata/moonraker-src/moonraker_obico"
 grep -Fqx 'native_video = true' "$printer/userdata/obico-version.cfg"
 grep -Fqx 'stream_mode = h264_copy' "$native_config"
 grep -Fqx 'h264_http_url = http://127.0.0.1/webcam/stream.h264' "$native_config"
-[ "$(readlink "$variant_path")" = "$printer/userdata/obico-janus" ]
-grep -Fq "f'-i {webcam.h264_http_url} -c:v copy'" "$printer/userdata/moonraker-src/moonraker_obico/webcam_stream.py"
+[ -x "$private_runtime/bin/janus" ]
+grep -Fq "'$private_runtime', None, None" "$native_module/janus_config_builder.py"
+grep -Fq '(janus_bin_path, system_janus_lib_path) = (None, None)' "$native_module/janus_config_builder.py"
+grep -Fq "f'-i {webcam.h264_http_url} -c:v copy'" "$native_module/webcam_stream.py"
+grep -Fq "JANUS_SERVER = '127.0.0.1'" "$native_module/janus.py"
+grep -Fq "env={'LD_LIBRARY_PATH': ld_lib_path}" "$native_module/janus.py"
+grep -Fq 'is_port_open(JANUS_SERVER, self.janus_port)' "$native_module/janus.py"
+grep -Fq 'os.getpgid(pid) != os.getpgrp()' "$native_module/janus.py"
+grep -Fq 'os.getpgid(pid) != os.getpgrp()' "$native_module/webcam_stream.py"
 cp "$native_config" "$test_root/native-before.cfg"
 run update
 cmp "$native_config" "$test_root/native-before.cfg"
-[ "$(readlink "$variant_path")" = "$printer/userdata/obico-janus" ]
+grep -Fq "'$private_runtime', None, None" "$native_module/janus_config_builder.py"
 
-rm -- "$variant_path"
 run restore
-[ "$(readlink "$variant_path")" = "$printer/userdata/obico-janus" ]
+printf '# Modified runtime\n' >> "$private_runtime/bin/janus"
+if run restore; then fail "a modified Janus runtime was accepted"; fi
+run update
+cmp "$private_runtime/bin/janus" "$janus_fixture/bin/janus"
 
 cat > "$printer/components/obico_starter.py" <<EOF
 class LegacyStarter:
@@ -286,12 +337,12 @@ async def check():
 asyncio.run(check())
 PY
 
-touch "$printer/userdata/obico-janus/previous-runtime"
+touch "$private_runtime/previous-runtime"
 touch "$printer/fail-http"
 if run update --janus-bundle "$janus_archive"; then fail "native update succeeded despite Moonraker failure"; fi
-[ -f "$printer/userdata/obico-janus/previous-runtime" ]
+[ -f "$private_runtime/previous-runtime" ]
 cmp "$native_config" "$test_root/native-before.cfg"
-[ "$(readlink "$variant_path")" = "$printer/userdata/obico-janus" ]
+grep -Fq "'$private_runtime', None, None" "$native_module/janus_config_builder.py"
 rm -- "$printer/fail-http"
 
 new_printer native-cloud
@@ -303,13 +354,26 @@ fi
 printer="$test_root/native"
 export printer
 
-printf '%064d\n' 0 > "$janus_archive.sha256"
-if run update --janus-bundle "$janus_archive"; then fail "unverified Janus archive accepted"; fi
+unapproved="$test_root/unapproved.tar.gz"
+cp "$janus_archive" "$unapproved"
+printf 'Unapproved archive' >> "$unapproved"
+sha256sum "$unapproved" > "$unapproved.sha256"
+if run update --janus-bundle "$unapproved"; then fail "an unapproved Janus archive and checksum were accepted"; fi
 cmp "$native_config" "$test_root/native-before.cfg"
-[ -x "$printer/userdata/obico-janus/bin/janus" ]
+[ -x "$private_runtime/bin/janus" ]
 
 printf 'y\n' | run uninstall --keep-config
-[ ! -e "$printer/userdata/obico-janus" ]
+[ ! -e "$private_runtime" ]
+[ -f "$printer/userdata/obico-janus/another-service/keep" ]
 grep -Fqx 'stream_mode = h264_copy' "$printer/userdata/obico-backup/moonraker-obico.cfg"
+
+new_printer janus-conflict
+mkdir -p "$printer/userdata/obico-janus/runtime"
+touch "$printer/userdata/obico-janus/runtime/foreign"
+if printf '2\nhttp://192.0.2.20:3334\n' | run install --no-link --native-video; then
+    fail "an unmanaged Janus runtime was overwritten"
+fi
+printf 'y\n' | run uninstall
+[ -f "$printer/userdata/obico-janus/runtime/foreign" ]
 
 printf 'Installer regression checks passed.\n'
