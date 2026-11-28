@@ -45,6 +45,37 @@ bash /tmp/obico-install.sh update
 
 Use `install` when setting up Obico for the first time or when you intend to replace the configuration and link again. Both commands download from upstream `master` by default. To select a release, add its tag after the command, for example `bash /tmp/obico-install.sh update v2.2.8`. [Upstream Obico releases](https://github.com/TheSpaghettiDetective/moonraker-obico/releases)
 
+## Native live video preview
+
+Native video sends the U1's H.264 camera feed through Janus on the printer. It
+requires an ARM64 U1 running Paxx Extended Firmware with the
+`/webcam/stream.h264` endpoint and a self-hosted Obico server. Run the installer
+from `/tmp` with the printer idle because it restarts Moonraker.
+
+Once the Janus release asset is published, enable native video with
+`update --native-video` for an already-linked printer or
+`install --native-video` for a fresh setup.
+
+```bash
+cd /tmp
+bash /tmp/obico-install.sh update --native-video
+```
+
+The installer verifies the exact release archive against its pinned SHA-256 and
+stores Janus and its private libraries under `/userdata/obico-janus/runtime`.
+Later updates reuse the verified copy and keep the linked config. Native video
+uses this runtime and its own PID files. Uninstall removes the managed runtime
+and leaves any other Janus installation in place.
+
+To verify a draft release, copy its runtime archive to the printer, then run:
+
+```bash
+bash /tmp/obico-install.sh update --janus-bundle /tmp/obico-janus-u1-aarch64.tar.gz
+```
+
+The local archive must match the same pinned checksum as the download. An
+earlier preview installation is migrated with the update command above.
+
 ## Back up, repair, or remove Obico
 
 | What you want to do | Command |
@@ -84,6 +115,9 @@ Run `restore` if the Obico config and Python environment are still present. It r
 ## Development
 
 Run `bash tests/installer.sh` from the repository on Linux. GitHub Actions runs the same tests with simulated printer services and temporary files.
+
+The [Janus release runbook](docs/janus-release.md) covers building the bundle,
+testing it on a U1, and publishing the exact archive the installer verifies.
 
 Thanks to [Obico](https://github.com/TheSpaghettiDetective/moonraker-obico), [Paxx Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware), and [D3LZ](https://github.com/D3LZ-D3LZ-D3LZ/u1obico).
 
